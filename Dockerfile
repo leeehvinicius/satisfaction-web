@@ -23,4 +23,4 @@ RUN npm install -g serve
 COPY --from=builder /app/dist ./
 
 EXPOSE 4000
-CMD ["sh", "-c", "echo 'Iniciando frontend...' && serve -s . -l 4000 --no-port-switching"]
+CMD [sh -c "echo 'Iniciando frontend...' && serve -s . -l 4000 --no-port-switching"]
