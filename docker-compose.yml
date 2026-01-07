@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  nextjs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: satisfaction-front
+    ports:
+      - "3200:3200"
+    environment:
+      - NODE_ENV=production
+      - TZ=America/Manaus
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro

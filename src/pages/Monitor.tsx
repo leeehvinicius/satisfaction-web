@@ -1,57 +1,97 @@
-import React, { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useParams, useNavigate } from 'react-router-dom';
-import { io, Socket } from 'socket.io-client';
-import { useAuth } from '@/context/AuthContext';
-import { votes, companies } from '@/services/api';
-import { useToast } from '@/hooks/use-toast';
-import Navbar from '@/components/Navbar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import React, { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useParams, useNavigate } from "react-router-dom";
+import { io, Socket } from "socket.io-client";
+import { useAuth } from "@/context/AuthContext";
+import { votes, companies } from "@/services/api";
+import { useToast } from "@/hooks/use-toast";
+import Navbar from "@/components/Navbar";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { isToday } from "date-fns";
 import {
   RefreshCw,
-  TrendingUp,
-  Users,
-  Star,
   Building2,
   AlertTriangle,
-  Clock,
   Activity,
-  LineChart,
   BarChart3,
   Heart,
   ThumbsUp,
-  ThumbsDown,
-  ArrowUpRight,
-  ArrowDownRight,
-  Zap,
-  Bell,
-  CheckCircle2,
-  XCircle
-} from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { format, subHours, subDays, isWithinInterval } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+  Star,
+} from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { format, subHours, subDays, isWithinInterval } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { cn } from '@/lib/utils';
-import VoteFloatingBars from '@/components/VoteFloatingBars';
-import VoteStats from '@/components/VoteStats';
-import { Vote, VoteAnalytics } from '@/types/vote';
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
+import VoteFloatingBars from "@/components/VoteFloatingBars";
+import VoteStats from "@/components/VoteStats";
+import { Vote, VoteAnalytics } from "@/types/vote";
+
+// --- Relógio do dispositivo (atualiza a cada 1s) ---
+function useDeviceClock(tickMs = 1000) {
+  const [now, setNow] = React.useState(new Date());
+  React.useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), tickMs);
+    return () => clearInterval(id);
+  }, [tickMs]);
+  return now;
+}
+// ----------------------------------------------------
+
+// -------------------- AJUSTE DE HORA: EMPRESA + SOMENTE NA TV --------------------
+const COMPANY_FIX_ID = "df2096e7-4036-44f8-bde0-9e3c70a2e99b";
+const TV_FIX_KEY = "vv_tv_time_fix"; // localStorage: "1" = aplicar, "0" = não aplicar
+
+function isSmartTVUA() {
+  const ua = (navigator.userAgent || "").toLowerCase();
+  // heurística ampla (Tizen, webOS, HbbTV, Android TV, Fire TV, Bravia, etc.)
+  return /(smart[-\s]?tv|tizen|webos|hbbtv|googletv|android\s?tv|aftmm?|aftt|afts|bravia|netcast|hisense|aquos|coocaa|appletv|firetv|crkey)/i.test(
+    ua
+  );
+}
+
+function getTvFixFlag() {
+  try {
+    return (
+      typeof localStorage !== "undefined" &&
+      localStorage.getItem(TV_FIX_KEY) === "1"
+    );
+  } catch {
+    return false;
+  }
+}
+
+// permite ligar/desligar via querystring ?tvfix=1 ou ?tvfix=0, persistindo na TV
+function setTvFixFlagFromQueryOnce() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get("tvfix"); // "1" liga, "0" desliga
+    if (q === "1" || q === "0") localStorage.setItem(TV_FIX_KEY, q);
+  } catch {}
+}
+
+function mustApplyOffset(companyId?: string | null) {
+  const onTargetCompany = companyId === COMPANY_FIX_ID;
+  const tvDetected = isSmartTVUA() || getTvFixFlag();
+  return onTargetCompany && tvDetected;
+}
+
+// retorna "agora" possivelmente com -1h
+function getNow(base: Date, companyId?: string | null) {
+  return mustApplyOffset(companyId) ? subHours(base, 1) : base;
+}
+// --------------------------------------------------------------------------------
 
 interface Analytics {
   totalVotes: number;
@@ -94,7 +134,7 @@ interface Company {
   }[];
 }
 
-type TimeRange = '1h' | '24h' | '7d' | '30d';
+type TimeRange = "1h" | "24h" | "7d" | "30d";
 
 const Monitor: React.FC = () => {
   const { companyId: selectedCompanyId } = useParams<{ companyId: string }>();
@@ -103,13 +143,16 @@ const Monitor: React.FC = () => {
   const { toast } = useToast();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
-  const [timeRange, setTimeRange] = useState<TimeRange>('24h');
-  const [alerts, setAlerts] = useState<Array<{
-    type: 'warning' | 'error' | 'success';
-    message: string;
-    timestamp: Date;
-  }>>([]);
-  const [activeServicesFilter, setActiveServicesFilter] = useState<boolean>(false);
+  const [timeRange, setTimeRange] = useState<TimeRange>("24h");
+  const [alerts, setAlerts] = useState<
+    Array<{
+      type: "warning" | "error" | "success";
+      message: string;
+      timestamp: Date;
+    }>
+  >([]);
+  const [activeServicesFilter, setActiveServicesFilter] =
+    useState<boolean>(false);
   const [activeService, setActiveService] = useState<{
     id: string;
     id_empresa: string;
@@ -122,9 +165,24 @@ const Monitor: React.FC = () => {
     date_add: string;
   } | null>(null);
 
+  // inicializa/atualiza flag via querystring (só roda no browser da TV)
+  useEffect(() => {
+    setTvFixFlagFromQueryOnce();
+  }, []);
+
+  // --- Hora do aparelho (24h) usando hora possivelmente ajustada ---
+  const now = useDeviceClock(1000);
+  const adjustedNow = getNow(now, selectedCompanyId);
+  const deviceTime = adjustedNow.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  // -----------------------------------------------------------------
+
   // Query para buscar todas as empresas
   const { data: companiesList } = useQuery({
-    queryKey: ['my-companies'],
+    queryKey: ["my-companies"],
     queryFn: companies.getMine,
     // queryFn: companies.getAll,
   });
@@ -140,32 +198,41 @@ const Monitor: React.FC = () => {
   );
 
   // Query para buscar dados iniciais
-  const { data: initialAnalytics, refetch, isError, error } = useQuery({
-    queryKey: ['analytics', selectedCompanyId],
+  const {
+    data: initialAnalytics,
+    refetch,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: ["analytics", selectedCompanyId],
     queryFn: async () => {
       if (selectedCompanyId) {
         try {
           const data = await votes.getAnalytics(selectedCompanyId);
           if (!data) {
-            throw new Error('Nenhum dado retornado da API');
+            throw new Error("Nenhum dado retornado da API");
           }
           return {
             ...data,
             averageRating: calculateAverageRating(data.avaliacoesPorTipo),
-            votesByService: Object.entries(data.votesByService).reduce((acc, [key, value]) => ({
-              ...acc,
-              [key]: {
-                ...value,
-                average: calculateAverageRating(value.avaliacoes),
-              },
-            }), {}),
+            votesByService: Object.entries(data.votesByService).reduce(
+              (acc, [key, value]) => ({
+                ...acc,
+                [key]: {
+                  ...value,
+                  average: calculateAverageRating((value as any).avaliacoes),
+                },
+              }),
+              {}
+            ),
           };
         } catch (error) {
-          console.error('Error fetching analytics:', error);
+          console.error("Error fetching analytics:", error);
           toast({
-            title: 'Erro ao carregar dados',
-            description: error instanceof Error ? error.message : 'Erro desconhecido',
-            variant: 'destructive',
+            title: "Erro ao carregar dados",
+            description:
+              error instanceof Error ? error.message : "Erro desconhecido",
+            variant: "destructive",
           });
           throw error;
         }
@@ -174,18 +241,23 @@ const Monitor: React.FC = () => {
       // Se não houver empresa selecionada, buscar dados de todas as empresas
       const allCompanies = await companies.getAll();
       const allAnalytics = await Promise.all(
-        allCompanies.map(async company => {
+        allCompanies.map(async (company) => {
           try {
             return await votes.getAnalytics(company.id);
           } catch (error) {
-            console.error(`Error fetching analytics for company ${company.id}:`, error);
+            console.error(
+              `Error fetching analytics for company ${company.id}:`,
+              error
+            );
             return null;
           }
         })
       );
 
       // Filter out failed requests and ensure type safety
-      const validAnalytics = allAnalytics.filter((data): data is VoteAnalytics => data !== null);
+      const validAnalytics = allAnalytics.filter(
+        (data): data is VoteAnalytics => data !== null
+      );
 
       // Combinar os dados de todas as empresas
       const combinedAnalytics: Analytics = {
@@ -197,61 +269,73 @@ const Monitor: React.FC = () => {
         recentVotes: [],
       };
 
-      validAnalytics.forEach(companyAnalytics => {
+      validAnalytics.forEach((companyAnalytics) => {
         // Somar total de votos
         combinedAnalytics.totalVotes += companyAnalytics.totalVotes;
 
         // Combinar avaliações por tipo
-        Object.entries(companyAnalytics.avaliacoesPorTipo).forEach(([tipo, count]) => {
-          combinedAnalytics.avaliacoesPorTipo[tipo] = (combinedAnalytics.avaliacoesPorTipo[tipo] || 0) + count;
-        });
+        Object.entries(companyAnalytics.avaliacoesPorTipo).forEach(
+          ([tipo, count]) => {
+            combinedAnalytics.avaliacoesPorTipo[tipo] =
+              (combinedAnalytics.avaliacoesPorTipo[tipo] || 0) + count;
+          }
+        );
 
         // Combinar votos por serviço
-        Object.entries(companyAnalytics.votesByService).forEach(([service, data]) => {
-          if (!combinedAnalytics.votesByService[service]) {
-            combinedAnalytics.votesByService[service] = {
-              total: 0,
-              average: 0,
-              avaliacoes: {},
-              percentuais: {},
-              votes: [],
-            };
-          }
-
-          const serviceData = combinedAnalytics.votesByService[service];
-          const typedServiceData = data as {
-            total: number;
-            avaliacoes: { [key: string]: number };
-            votes: Vote[];
-          };
-
-          serviceData.total += typedServiceData.total;
-
-          // Combinar avaliações por tipo para cada serviço
-          Object.entries(typedServiceData.avaliacoes).forEach(([tipo, count]) => {
-            if (!serviceData.avaliacoes[tipo]) {
-              serviceData.avaliacoes[tipo] = 0;
+        Object.entries(companyAnalytics.votesByService).forEach(
+          ([service, data]) => {
+            if (!combinedAnalytics.votesByService[service]) {
+              combinedAnalytics.votesByService[service] = {
+                total: 0,
+                average: 0,
+                avaliacoes: {},
+                percentuais: {},
+                votes: [],
+              };
             }
-            serviceData.avaliacoes[tipo] += count;
-          });
 
-          serviceData.votes.push(...typedServiceData.votes);
-        });
+            const serviceData = combinedAnalytics.votesByService[service];
+            const typedServiceData = data as {
+              total: number;
+              avaliacoes: { [key: string]: number };
+              votes: Vote[];
+            };
+
+            serviceData.total += typedServiceData.total;
+
+            // Combinar avaliações por tipo para cada serviço
+            Object.entries(typedServiceData.avaliacoes).forEach(
+              ([tipo, count]) => {
+                if (!serviceData.avaliacoes[tipo]) {
+                  serviceData.avaliacoes[tipo] = 0;
+                }
+                serviceData.avaliacoes[tipo] += count;
+              }
+            );
+
+            serviceData.votes.push(...typedServiceData.votes);
+          }
+        );
 
         // Adicionar votos recentes
         combinedAnalytics.recentVotes.push(...companyAnalytics.recentVotes);
       });
 
       // Calcular médias e percentuais
-      combinedAnalytics.averageRating = calculateAverageRating(combinedAnalytics.avaliacoesPorTipo);
+      combinedAnalytics.averageRating = calculateAverageRating(
+        combinedAnalytics.avaliacoesPorTipo
+      );
 
       // Calcular percentuais por tipo
-      Object.entries(combinedAnalytics.avaliacoesPorTipo).forEach(([tipo, count]) => {
-        combinedAnalytics.percentuaisPorTipo[tipo] = (count / combinedAnalytics.totalVotes) * 100;
-      });
+      Object.entries(combinedAnalytics.avaliacoesPorTipo).forEach(
+        ([tipo, count]) => {
+          combinedAnalytics.percentuaisPorTipo[tipo] =
+            (count / combinedAnalytics.totalVotes) * 100;
+        }
+      );
 
       // Calcular médias e percentuais por serviço
-      Object.keys(combinedAnalytics.votesByService).forEach(service => {
+      Object.keys(combinedAnalytics.votesByService).forEach((service) => {
         const serviceData = combinedAnalytics.votesByService[service];
         serviceData.average = calculateAverageRating(serviceData.avaliacoes);
 
@@ -262,24 +346,26 @@ const Monitor: React.FC = () => {
       });
 
       // Ordenar votos recentes por data
-      combinedAnalytics.recentVotes.sort((a, b) =>
-        new Date(b.momento_voto).getTime() - new Date(a.momento_voto).getTime()
+      combinedAnalytics.recentVotes.sort(
+        (a, b) =>
+          new Date(b.momento_voto).getTime() -
+          new Date(a.momento_voto).getTime()
       );
 
       return combinedAnalytics;
     },
     enabled: true,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: 30000, // Refetch every 30 segundos
     refetchOnWindowFocus: true,
-    staleTime: 10000, // Consider data stale after 10 seconds
+    staleTime: 10000, // Considera stale após 10s
   });
 
   const calculateAverageRating = (avaliacoes: { [key: string]: number }) => {
     const ratingValues = {
-      'Ótimo': 5,
-      'Bom': 4,
-      'Regular': 3,
-      'Ruim': 2,
+      Ótimo: 5,
+      Bom: 4,
+      Regular: 3,
+      // 'Ruim': 2,
     };
 
     let totalWeight = 0;
@@ -302,11 +388,11 @@ const Monitor: React.FC = () => {
     // const newSocket = io('https://api.vvrefeicoes.com.br');
     setSocket(newSocket);
 
-    newSocket.emit('joinCompanyRoom', selectedCompanyId);
+    newSocket.emit("joinCompanyRoom", selectedCompanyId);
 
-    newSocket.on('voteUpdate', async (updatedVote: Vote) => {
+    newSocket.on("voteUpdate", async (updatedVote: Vote) => {
       // Update analytics state immediately
-      setAnalytics(prevAnalytics => {
+      setAnalytics((prevAnalytics) => {
         if (!prevAnalytics) return null;
 
         // Atualiza os votos recentes
@@ -315,7 +401,8 @@ const Monitor: React.FC = () => {
         // Atualiza as avaliações por tipo
         const updatedAvaliacoesPorTipo = {
           ...prevAnalytics.avaliacoesPorTipo,
-          [updatedVote.avaliacao]: (prevAnalytics.avaliacoesPorTipo[updatedVote.avaliacao] || 0) + 1
+          [updatedVote.avaliacao]:
+            (prevAnalytics.avaliacoesPorTipo[updatedVote.avaliacao] || 0) + 1,
         };
 
         // Atualiza os votos por serviço
@@ -328,7 +415,7 @@ const Monitor: React.FC = () => {
               average: 0,
               avaliacoes: {},
               percentuais: {},
-              votes: []
+              votes: [],
             };
           }
 
@@ -337,18 +424,19 @@ const Monitor: React.FC = () => {
           serviceData.votes = [updatedVote, ...serviceData.votes];
           serviceData.avaliacoes = {
             ...serviceData.avaliacoes,
-            [updatedVote.avaliacao]: (serviceData.avaliacoes[updatedVote.avaliacao] || 0) + 1
+            [updatedVote.avaliacao]:
+              (serviceData.avaliacoes[updatedVote.avaliacao] || 0) + 1,
           };
         }
 
-        console.log('Updating analytics with new vote:', updatedVote);
+        console.log("Updating analytics with new vote:", updatedVote);
 
         return {
           ...prevAnalytics,
           recentVotes: updatedRecentVotes,
           totalVotes: prevAnalytics.totalVotes + 1,
           avaliacoesPorTipo: updatedAvaliacoesPorTipo,
-          votesByService: updatedVotesByService
+          votesByService: updatedVotesByService,
         };
       });
 
@@ -357,14 +445,14 @@ const Monitor: React.FC = () => {
 
       // Show toast notification
       toast({
-        title: 'Novo voto recebido!',
-        description: 'Os dados foram atualizados.',
-        variant: 'default',
+        title: "Novo voto recebido!",
+        description: "Os dados foram atualizados.",
+        variant: "default",
       });
     });
 
     return () => {
-      newSocket.emit('leaveCompanyRoom', selectedCompanyId);
+      newSocket.emit("leaveCompanyRoom", selectedCompanyId);
       newSocket.disconnect();
     };
   }, [selectedCompanyId, toast, refetch]);
@@ -392,7 +480,7 @@ const Monitor: React.FC = () => {
     // Verificar média geral
     if (data.averageRating < 3) {
       newAlerts.push({
-        type: 'warning',
+        type: "warning",
         message: `Média geral baixa: ${data.averageRating.toFixed(1)}`,
         timestamp: new Date(),
       });
@@ -402,8 +490,10 @@ const Monitor: React.FC = () => {
     Object.entries(data.votesByService).forEach(([service, serviceData]) => {
       if (serviceData.average < 3) {
         newAlerts.push({
-          type: 'warning',
-          message: `Serviço "${service}" com média baixa: ${serviceData.average.toFixed(1)}`,
+          type: "warning",
+          message: `Serviço "${service}" com média baixa: ${serviceData.average.toFixed(
+            1
+          )}`,
           timestamp: new Date(),
         });
       }
@@ -415,8 +505,10 @@ const Monitor: React.FC = () => {
       const previousVote = getRatingValue(data.recentVotes[1].avaliacao);
       if (lastVote < previousVote && lastVote < 3) {
         newAlerts.push({
-          type: 'error',
-          message: `Tendência de queda detectada: ${previousVote.toFixed(1)} → ${lastVote.toFixed(1)}`,
+          type: "error",
+          message: `Tendência de queda detectada: ${previousVote.toFixed(
+            1
+          )} → ${lastVote.toFixed(1)}`,
           timestamp: new Date(),
         });
       }
@@ -426,8 +518,8 @@ const Monitor: React.FC = () => {
   };
 
   const handleCompanyChange = (companyId: string) => {
-    if (companyId === 'all') {
-      navigate('/monitor');
+    if (companyId === "all") {
+      navigate("/monitor");
     } else {
       navigate(`/monitor/${companyId}`);
     }
@@ -435,29 +527,31 @@ const Monitor: React.FC = () => {
 
   const getTimeRangeLabel = (range: TimeRange) => {
     switch (range) {
-      case '1h':
-        return 'Última hora';
-      case '24h':
-        return 'Últimas 24 horas';
-      case '7d':
-        return 'Últimos 7 dias';
-      case '30d':
-        return 'Últimos 30 dias';
+      case "1h":
+        return "Última hora";
+      case "24h":
+        return "Últimas 24 horas";
+      case "7d":
+        return "Últimos 7 dias";
+      case "30d":
+        return "Últimos 30 dias";
     }
   };
 
   const getActiveServices = () => {
     if (!selectedCompany || !selectedCompany.servicos) return [];
 
-    const now = new Date();
-    const currentTime = now.getHours() * 60 + now.getMinutes();
+    const nowAdj = getNow(new Date(), selectedCompanyId);
+    const currentTime = nowAdj.getHours() * 60 + nowAdj.getMinutes();
 
-    return selectedCompany.servicos.filter(service => {
+    return selectedCompany.servicos.filter((service) => {
       // Primeiro verifica se o serviço está ativo (status true)
       if (!service.status) return false;
 
-      const [startHour, startMinute] = service.hora_inicio.split(':').map(Number);
-      const [endHour, endMinute] = service.hora_final.split(':').map(Number);
+      const [startHour, startMinute] = service.hora_inicio
+        .split(":")
+        .map(Number);
+      const [endHour, endMinute] = service.hora_final.split(":").map(Number);
 
       const serviceStartTime = startHour * 60 + startMinute;
       const serviceEndTime = endHour * 60 + endMinute;
@@ -466,87 +560,32 @@ const Monitor: React.FC = () => {
     });
   };
 
-  // const getFilteredVotes = (votes: Vote[]) => {
-  //   if (!votes || votes.length === 0) return [];
-
-  //   // Encontra a data mais recente dos votos
-  //   const latestVoteDate = new Date(Math.max(...votes.map(v => new Date(v.momento_voto).getTime())));
-  //   let startDate: Date;
-
-  //   switch (timeRange) {
-  //     case '1h':
-  //       startDate = subHours(latestVoteDate, 1);
-  //       break;
-  //     case '24h':
-  //       startDate = subHours(latestVoteDate, 24);
-  //       break;
-  //     case '7d':
-  //       startDate = subDays(latestVoteDate, 7);
-  //       break;
-  //     case '30d':
-  //       startDate = subDays(latestVoteDate, 30);
-  //       break;
-  //   }
-
-  //   // Se houver um serviço ativo, usa os votos desse serviço
-  //   if (activeService && analytics?.votesByService[activeService.id]) {
-  //     let serviceVotes = analytics.votesByService[activeService.id].votes;
-
-  //     // Filtra por intervalo de tempo
-  //     return serviceVotes.filter((vote) =>
-  //       isWithinInterval(new Date(vote.momento_voto), { start: startDate, end: latestVoteDate })
-  //     );
-  //   }
-
-  //   // Se não houver serviço ativo, filtra todos os votos por tempo
-  //   return votes.filter((vote) =>
-  //     isWithinInterval(new Date(vote.momento_voto), { start: startDate, end: latestVoteDate })
-  //   );
-  // };
   const getFilteredVotes = (votes: Vote[]) => {
     if (!votes || votes.length === 0) return [];
 
-    // 🔒 Se estiver em intervalo, retorna zero votos
     if (!activeService) return [];
 
-    const latestVoteDate = new Date(Math.max(...votes.map(v => new Date(v.momento_voto).getTime())));
-    let startDate: Date;
+    const serviceVotes =
+      analytics?.votesByService[activeService.id]?.votes || [];
 
-    switch (timeRange) {
-      case '1h':
-        startDate = subHours(latestVoteDate, 1);
-        break;
-      case '24h':
-        startDate = subHours(latestVoteDate, 24);
-        break;
-      case '7d':
-        startDate = subDays(latestVoteDate, 7);
-        break;
-      case '30d':
-        startDate = subDays(latestVoteDate, 30);
-        break;
-    }
+    // "Hoje" com base na hora ajustada (empresa + TV)
+    const today = getNow(new Date(), selectedCompanyId)
+      .toISOString()
+      .slice(0, 10); // Ex: "2025-05-09"
 
-    const serviceVotes = analytics?.votesByService[activeService.id]?.votes || [];
-
-    return serviceVotes.filter((vote) =>
-      isWithinInterval(new Date(vote.momento_voto), {
-        start: startDate,
-        end: latestVoteDate,
-      })
+    return serviceVotes.filter(
+      (vote) => vote.momento_voto.slice(0, 10) === today
     );
   };
 
   const getRatingValue = (avaliacao: string): number => {
     switch (avaliacao) {
-      case 'Ótimo':
+      case "Ótimo":
         return 5;
-      case 'Bom':
+      case "Bom":
         return 4;
-      case 'Regular':
+      case "Regular":
         return 3;
-      case 'Ruim':
-        return 2;
       default:
         return 0;
     }
@@ -554,36 +593,32 @@ const Monitor: React.FC = () => {
 
   const getRatingColor = (avaliacao: string) => {
     switch (avaliacao) {
-      case 'Ótimo':
-        return 'text-green-500';
-      case 'Bom':
-        return 'text-blue-500';
-      case 'Regular':
-        return 'text-yellow-500';
-      case 'Ruim':
-        return 'text-red-500';
+      case "Ótimo":
+        return "text-green-500";
+      case "Bom":
+        return "text-blue-500";
+      case "Regular":
+        return "text-yellow-500";
       default:
-        return 'text-muted-foreground';
+        return "text-muted-foreground";
     }
   };
 
   const getRatingColorByValue = (value: number) => {
-    if (value >= 4.5) return 'text-green-500';
-    if (value >= 3.5) return 'text-blue-500';
-    if (value >= 2.5) return 'text-yellow-500';
-    return 'text-red-500';
+    if (value >= 4.5) return "text-green-500";
+    if (value >= 3.5) return "text-blue-500";
+    if (value >= 2.5) return "text-yellow-500";
+    return "text-red-500";
   };
 
   const getRatingIcon = (avaliacao: string) => {
     switch (avaliacao) {
-      case 'Ótimo':
+      case "Ótimo":
         return <Heart className="h-4 w-4 fill-current" />;
-      case 'Bom':
+      case "Bom":
         return <ThumbsUp className="h-4 w-4" />;
-      case 'Regular':
+      case "Regular":
         return <Star className="h-4 w-4" />;
-      case 'Ruim':
-        return <ThumbsDown className="h-4 w-4" />;
       default:
         return null;
     }
@@ -591,7 +626,7 @@ const Monitor: React.FC = () => {
 
   // Função para limpar votos
   const clearVotes = () => {
-    setAnalytics(prevAnalytics => {
+    setAnalytics((prevAnalytics) => {
       if (!prevAnalytics) return null;
 
       // Reset the analytics to show all votes when in interval
@@ -600,24 +635,26 @@ const Monitor: React.FC = () => {
         recentVotes: prevAnalytics.recentVotes,
         totalVotes: prevAnalytics.totalVotes,
         avaliacoesPorTipo: prevAnalytics.avaliacoesPorTipo,
-        votesByService: prevAnalytics.votesByService
+        votesByService: prevAnalytics.votesByService,
       };
     });
   };
 
-  // Efeito para verificar o serviço ativo periodicamente
+  // Efeito para verificar o serviço ativo periodicamente (usando hora ajustada)
   useEffect(() => {
     const checkActiveService = () => {
       if (!selectedCompany || !selectedCompany.servicos) return;
 
-      const now = new Date();
-      const currentTime = now.getHours() * 60 + now.getMinutes();
+      const nowAdj = getNow(new Date(), selectedCompanyId);
+      const currentTime = nowAdj.getHours() * 60 + nowAdj.getMinutes();
 
-      const activeService = selectedCompany.servicos.find(service => {
+      const activeService = selectedCompany.servicos.find((service) => {
         if (!service.status) return false;
 
-        const [startHour, startMinute] = service.hora_inicio.split(':').map(Number);
-        const [endHour, endMinute] = service.hora_final.split(':').map(Number);
+        const [startHour, startMinute] = service.hora_inicio
+          .split(":")
+          .map(Number);
+        const [endHour, endMinute] = service.hora_final.split(":").map(Number);
 
         const serviceStartTime = startHour * 60 + startMinute;
         const serviceEndTime = endHour * 60 + endMinute;
@@ -641,7 +678,7 @@ const Monitor: React.FC = () => {
     const interval = setInterval(checkActiveService, 60000);
 
     return () => clearInterval(interval);
-  }, [selectedCompany]);
+  }, [selectedCompany, selectedCompanyId]);
 
   const getActiveService = () => {
     return activeService;
@@ -651,14 +688,20 @@ const Monitor: React.FC = () => {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Navbar />
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-24">
+        <div className="w-full px-6 py-24">
           <div className="flex flex-col items-center justify-center space-y-4">
             <AlertTriangle className="h-12 w-12 text-destructive" />
             <h2 className="text-2xl font-semibold">Erro ao carregar dados</h2>
             <p className="text-muted-foreground">
-              {error instanceof Error ? error.message : 'Ocorreu um erro ao carregar os dados. Por favor, tente novamente.'}
+              {error instanceof Error
+                ? error.message
+                : "Ocorreu um erro ao carregar os dados. Por favor, tente novamente."}
             </p>
-            <Button onClick={() => refetch()} variant="outline" className="gap-2">
+            <Button
+              onClick={() => refetch()}
+              variant="outline"
+              className="gap-2"
+            >
               <RefreshCw className="h-4 w-4" />
               Tentar novamente
             </Button>
@@ -672,7 +715,7 @@ const Monitor: React.FC = () => {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Navbar />
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-24">
+        <div className="w-full px-6 py-24">
           <div className="flex flex-col items-center justify-center space-y-4">
             <Building2 className="h-12 w-12 text-muted-foreground" />
             <h2 className="text-2xl font-semibold">Selecione uma empresa</h2>
@@ -701,7 +744,7 @@ const Monitor: React.FC = () => {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Navbar />
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-24">
+        <div className="w-full px-6 py-24">
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
@@ -712,12 +755,16 @@ const Monitor: React.FC = () => {
 
   const filteredVotes = getFilteredVotes(analytics.recentVotes);
   const votesInRange = filteredVotes.length;
-  const averageInRange = filteredVotes.reduce((acc, vote) => acc + getRatingValue(vote.avaliacao), 0) / (votesInRange || 1);
+  const averageInRange =
+    filteredVotes.reduce(
+      (acc, vote) => acc + getRatingValue(vote.avaliacao),
+      0
+    ) / (votesInRange || 1);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-24">
+      <div className="w-full px-6 py-24">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8">
           <div>
             <div className="flex items-center space-x-4">
@@ -728,8 +775,14 @@ const Monitor: React.FC = () => {
                 <h1 className="text-3xl font-bold tracking-tight">Monitor</h1>
                 <p className="text-muted-foreground">
                   {selectedCompanyId
-                    ? `Monitoramento de ${companiesList?.find(c => c.id === selectedCompanyId)?.nome}`
-                    : 'Monitoramento Geral'}
+                    ? `Monitoramento de ${
+                        companiesList?.find((c) => c.id === selectedCompanyId)
+                          ?.nome
+                      } (${
+                        companiesList?.find((c) => c.id === selectedCompanyId)
+                          ?.qtdbutao ?? 0
+                      } botões)`
+                    : "Monitoramento Geral"}
                 </p>
               </div>
             </div>
@@ -742,10 +795,13 @@ const Monitor: React.FC = () => {
               if (service) {
                 return (
                   <div className="flex flex-col items-center">
-                    <span className="text-5xl font-bold text-red-500">{service.nome}</span>
-                    {/* <span className="text-xs text-muted-foreground">
-                        ({service.hora_inicio} - {service.hora_final})
-                      </span> */}
+                    <span className="text-5xl font-bold text-red-500">
+                      {service.nome}
+                    </span>
+                    {/* Hora do aparelho (24h) */}
+                    <span className="mt-1 text-sm text-muted-foreground">
+                      {deviceTime}
+                    </span>
                   </div>
                 );
               }
@@ -754,13 +810,17 @@ const Monitor: React.FC = () => {
                   <span className="text-5xl font-bold text-red-500">
                     Intervalo
                   </span>
+                  {/* Hora do aparelho (24h) */}
+                  <span className="mt-1 text-sm text-muted-foreground">
+                    {deviceTime}
+                  </span>
                 </div>
               );
             })()}
           </div>
           <div className="flex items-center space-x-4">
             <Select
-              value={selectedCompanyId || 'all'}
+              value={selectedCompanyId || "all"}
               onValueChange={handleCompanyChange}
             >
               <SelectTrigger className="w-[200px]">
@@ -786,198 +846,22 @@ const Monitor: React.FC = () => {
           </div>
         </div>
 
-        {/* Filtros */}
-        {/* <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8">
-          <div className="flex items-center space-x-4"> */}
-        {/* <Select value={timeRange} onValueChange={(value: TimeRange) => setTimeRange(value)}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Período" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1h">Última hora</SelectItem>
-                <SelectItem value="24h">Últimas 24 horas</SelectItem>
-                <SelectItem value="7d">Últimos 7 dias</SelectItem>
-                <SelectItem value="30d">Últimos 30 dias</SelectItem>
-              </SelectContent>
-            </Select> */}
-        {/* <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="activeServices"
-                checked={activeServicesFilter}
-                onChange={(e) => setActiveServicesFilter(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-              />
-              <label htmlFor="activeServices" className="text-sm text-muted-foreground">
-                Apenas serviços ativos
-              </label>
-            </div> */}
-        {/* </div>
-        </div> */}
-
-        {/* Alertas */}
-        {alerts.length > 0 && (
-          <div className="mb-8 space-y-4">
-            {alerts.map((alert, index) => (
-              <Alert
-                key={index}
-                variant={alert.type === 'error' ? 'destructive' : 'default'}
-                className={cn(
-                  "border-l-4",
-                  alert.type === 'error' ? "border-red-500" :
-                    alert.type === 'warning' ? "border-yellow-500" :
-                      "border-green-500"
-                )}
-              >
-                {alert.type === 'error' ? (
-                  <XCircle className="h-4 w-4 text-red-500" />
-                ) : alert.type === 'warning' ? (
-                  <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                ) : (
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                )}
-                <AlertTitle>
-                  {alert.type === 'error' ? 'Alerta Crítico' : alert.type === 'warning' ? 'Atenção' : 'Informação'}
-                </AlertTitle>
-                <AlertDescription>{alert.message}</AlertDescription>
-              </Alert>
-            ))}
-          </div>
-        )}
-
-        {/* Serviço Atual
-        {selectedCompany && (
-          <Card className="mb-8 bg-gradient-to-br from-purple-500/5 to-purple-500/10">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Serviço Atual</CardTitle>
-              <Clock className="h-4 w-4 text-purple-500" />
-            </CardHeader>
-            <CardContent>
-              {(() => {
-                const service = getActiveService();
-                if (service) {
-                  return (
-                    <div className="flex items-center space-x-2">
-                      <div className="h-2 w-2 rounded-full bg-purple-500 animate-pulse" />
-                      <span className="text-sm font-medium">{service.nome}</span>
-                      <span className="text-xs text-muted-foreground">
-                        ({service.hora_inicio} - {service.hora_final})
-                      </span>
-                    </div>
-                  );
-                }
-                return (
-                  <div className="flex items-center space-x-2">
-                    <div className="h-2 w-2 rounded-full bg-gray-500" />
-                    <span className="text-sm font-medium text-muted-foreground">
-                      Intervalo
-                    </span>
-                  </div>
-                );
-              })()}
-            </CardContent>
-          </Card>
-        )} */}
-
-
-
         {/* Estatísticas de Votos */}
         <Card className="mt-8 bg-gradient-to-br from-primary/5 to-primary/10">
           <CardHeader>
             <div className="flex items-center space-x-2">
               <BarChart3 className="h-5 w-5 text-primary" />
-              <CardTitle>Estatísticas de Votos</CardTitle>
+              <span className="font-medium">Estatísticas de Votos</span>
             </div>
           </CardHeader>
           <CardContent>
-            <VoteStats votes={filteredVotes} />
-          </CardContent>
-        </Card>
-
-
-        {/* Status em tempo real */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 mt-8">
-          <Card className="bg-gradient-to-br from-primary/5 to-primary/10">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Status</CardTitle>
-              <Activity className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center space-x-2">
-                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-sm font-medium">Ativo</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Recebendo votos em tempo real
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-blue-500/5 to-blue-500/10">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Votos no período</CardTitle>
-              <Users className="h-4 w-4 text-blue-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{votesInRange}</div>
-              <p className="text-xs text-muted-foreground">
-                {getTimeRangeLabel(timeRange)}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-yellow-500/5 to-yellow-500/10">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Média no período</CardTitle>
-              <Star className="h-4 w-4 text-yellow-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {averageInRange.toFixed(1)}
-              </div>
-              <Progress
-                value={(averageInRange / 5) * 100}
-                className="mt-2 bg-yellow-100 dark:bg-yellow-900/20"
-              />
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-green-500/5 to-green-500/10">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tendência</CardTitle>
-              <TrendingUp className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center space-x-2">
-                {averageInRange >= analytics.averageRating ? (
-                  <Badge variant="default" className="bg-green-500 hover:bg-green-600">
-                    <ArrowUpRight className="h-3 w-3 mr-1" />
-                    Crescendo
-                  </Badge>
-                ) : (
-                  <Badge variant="destructive">
-                    <ArrowDownRight className="h-3 w-3 mr-1" />
-                    Diminuindo
-                  </Badge>
-                )}
-                <span className="text-sm text-muted-foreground">
-                  {Math.abs(averageInRange - analytics.averageRating).toFixed(1)} pontos
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Votos recentes com indicadores */}
-        <Card className="mt-8 bg-gradient-to-br from-primary/5 to-primary/10">
-          <CardHeader>
-            <div className="flex items-center space-x-2">
-              <Zap className="h-5 w-5 text-primary" />
-              <CardTitle>Votos Recentes</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <VoteFloatingBars votes={filteredVotes} height={300} />
+            <VoteStats
+              votes={filteredVotes}
+              qtdbutao={
+                companiesList?.find((c) => c.id === selectedCompanyId)
+                  ?.qtdbutao ?? 0
+              }
+            />
           </CardContent>
         </Card>
       </div>
