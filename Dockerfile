@@ -1,26 +1,14 @@
-# Etapa 1: Build da aplicação
-FROM node:18-alpine AS builder
+FROM node:18-alpine
+
 WORKDIR /app
+
 COPY package*.json ./
 RUN npm install
+
 COPY . .
-COPY .env ./
-RUN chmod -R +x node_modules/.bin && npm run build \
-	&& ls -l /app/dist
 
-# Etapa 2: Rodar a aplicação
-FROM node:18-alpine
-WORKDIR /app
+RUN npm run build
 
-# ✅ Instala fuso horário
-RUN apk add --no-cache tzdata
-ENV TZ=America/Manaus
+EXPOSE 3000
 
-# ⬇️ Instala o serve globalmente
-RUN npm install -g serve
-
-# copia o conteúdo da dist para a raiz
-COPY --from=builder /app/dist ./
-
-EXPOSE 4000
-CMD [ "sh", "-c", "echo 'Iniciando frontend...' && serve -s . -l 4000 --no-port-switching" ]
+CMD ["npm", "start"]
