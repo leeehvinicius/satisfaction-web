@@ -4,7 +4,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-RUN chmod -R +x node_modules/.bin && npm run build
+RUN chmod -R +x node_modules/.bin && npm run build \
+	&& ls -l /app/dist
 
 # Etapa 2: Rodar a aplicação
 FROM node:18-alpine
