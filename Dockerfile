@@ -4,6 +4,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
+COPY .env ./
 RUN chmod -R +x node_modules/.bin && npm run build \
 	&& ls -l /app/dist
 
@@ -22,4 +23,6 @@ RUN npm install -g serve
 COPY --from=builder /app/dist ./
 
 EXPOSE 3001
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+	CMD wget --no-verbose --tries=1 --spider http://localhost:3001/ || exit 1
 CMD ["serve", "-s", ".", "-l", "3001"]
