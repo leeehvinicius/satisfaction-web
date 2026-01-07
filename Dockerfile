@@ -16,13 +16,11 @@ WORKDIR /app
 RUN apk add --no-cache tzdata
 ENV TZ=America/Manaus
 
-
 # ⬇️ Instala o serve globalmente
 RUN npm install -g serve
-ENV PATH="/usr/local/bin:${PATH}"
 
 # copia o conteúdo da dist para a raiz
 COPY --from=builder /app/dist ./
 
-EXPOSE 3001
-CMD ["serve", "-s", ".", "-l", "3001"]
+EXPOSE 4000
+CMD ["serve", "-s", ".", "-l", "4000", "--no-port-switching"]
