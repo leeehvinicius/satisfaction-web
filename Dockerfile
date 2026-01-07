@@ -16,8 +16,10 @@ WORKDIR /app
 RUN apk add --no-cache tzdata
 ENV TZ=America/Manaus
 
+
 # ⬇️ Instala o serve globalmente
 RUN npm install -g serve
+ENV PATH="/usr/local/bin:${PATH}"
 
 # copia o conteúdo da dist para a raiz
 COPY --from=builder /app/dist ./
