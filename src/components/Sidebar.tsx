@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
+import { votes } from '@/services/api';
 import {
   Home,
   BarChart3,
@@ -36,6 +38,27 @@ const Sidebar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { theme } = useTheme();
+
+  // Fetch operation status for sidebar metrics
+  const now = new Date();
+  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startDate = firstDayOfMonth.toISOString().split('T')[0];
+  const endDate = now.toISOString().split('T')[0];
+
+  const { data: operationStatus } = useQuery({
+    queryKey: ['operation-status-sidebar', startDate, endDate],
+    queryFn: () => votes.getOperationStatus(startDate, endDate),
+    enabled: isAuthenticated,
+    refetchInterval: 60000, // Refresh every minute
+  });
+
+  // Fetch company ranking for sidebar
+  const { data: companyRanking } = useQuery({
+    queryKey: ['company-ranking-sidebar', startDate, endDate],
+    queryFn: () => votes.getCompanyRanking(startDate, endDate, undefined, 5),
+    enabled: isAuthenticated,
+    refetchInterval: 60000, // Refresh every minute
+  });
 
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -88,6 +111,12 @@ const Sidebar: React.FC = () => {
         title: 'Relatórios',
         icon: FileText,
         path: '/relatorios',
+        permission: 'relatorios'
+      },
+      {
+        title: 'Status da Operação',
+        icon: BarChart3,
+        path: '/status-operacao',
         permission: 'relatorios'
       },
     ].filter(item => hasPermission(item.permission))
@@ -145,6 +174,28 @@ const Sidebar: React.FC = () => {
         {isAuthenticated && (
           <div className="space-y-4">
 
+            {/* RANKING TOP 5 */}
+            {companyRanking?.ranking && companyRanking.ranking.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-sm font-bold text-center">🏆 Top 5 Empresas</div>
+                <div className="space-y-1">
+                  {companyRanking.ranking.slice(0, 5).map((company) => (
+                    <div key={company.companyId} className="flex items-center justify-between px-2 py-1 bg-accent/50 rounded text-xs">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <span className="font-bold text-primary">{company.position}º</span>
+                        <span className="truncate" title={company.companyName}>{company.companyName}</span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="bg-green-500 text-white px-1.5 py-0.5 rounded font-bold">
+                          {company.satisfacao.percentage.toFixed(0)}%
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* STATUS DA OPERAÇÃO PRIMEIRO */}
             <div className="space-y-2">
               <div className="text-sm font-bold text-center">Status da Operação</div>
@@ -155,7 +206,7 @@ const Sidebar: React.FC = () => {
                   <span>Satisfação</span>
                 </div>
                 <div className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">
-                  0%
+                  {operationStatus?.metrics.satisfacao.percentage.toFixed(1) || '0.0'}%
                 </div>
               </div>
 
@@ -165,7 +216,7 @@ const Sidebar: React.FC = () => {
                   <span>Melhoria</span>
                 </div>
                 <div className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-                  0%
+                  {operationStatus?.metrics.melhoria.percentage.toFixed(1) || '0.0'}%
                 </div>
               </div>
             </div>

@@ -83,6 +83,7 @@ const AddCompanyDialog: React.FC<AddCompanyDialogProps> = ({
       setFormData({
         ...company,
         qt_funcionarios: company.qt_funcionarios.toString(),
+        qtdbutao: company.qtdbutao || 3,
         user_edt: user?.username || '',
       });
     } else {
@@ -130,6 +131,7 @@ const AddCompanyDialog: React.FC<AddCompanyDialogProps> = ({
         user_edt: user?.username || '',
         user_add: user?.username || '',
         linha: 0,
+        qtdbutao: 3,
       });
       setCurrentStep(0);
     },
@@ -165,6 +167,7 @@ const AddCompanyDialog: React.FC<AddCompanyDialogProps> = ({
         user_edt: user?.username || '',
         user_add: user?.username || '',
         linha: 0,
+        qtdbutao: 3,
       });
       setCurrentStep(0);
     },
@@ -442,7 +445,15 @@ const AddCompanyDialog: React.FC<AddCompanyDialogProps> = ({
             </Button>
             {currentStep === steps.length - 1 ? (
               <Button
-                type="submit"
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  const form = e.currentTarget.closest('form');
+                  if (form) {
+                    const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+                    form.dispatchEvent(submitEvent);
+                  }
+                }}
                 disabled={createMutation.isPending || updateMutation.isPending}
                 className="w-full sm:w-auto"
               >

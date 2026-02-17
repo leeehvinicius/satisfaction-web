@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SafeChart } from '@/components/SafeChart';
 
 import {
   BarChart as RechartsBarChart,
@@ -109,41 +110,41 @@ export default function Relatorios() {
   // });
 
   const { data: analytics } = useQuery({
-  queryKey: ['votes', 'analytics', selectedCompany, dateRange, quickFilter],
-  queryFn: async () => {
-    let startDate = new Date();
-    let endDate = new Date();
+    queryKey: ['votes', 'analytics', selectedCompany, dateRange, quickFilter],
+    queryFn: async () => {
+      let startDate = new Date();
+      let endDate = new Date();
 
-    if (dateRange?.from && dateRange?.to) {
-      startDate = dateRange.from;
-      endDate = dateRange.to;
-    } else {
-      switch (quickFilter) {
-        case '1d':
-          startDate = new Date();
-          endDate = new Date();
-          break;
-        case '7d':
-          startDate = addDays(new Date(), -7);
-          endDate = new Date();
-          break;
-        case '30d':
-          startDate = addDays(new Date(), -30);
-          endDate = new Date();
-          break;
+      if (dateRange?.from && dateRange?.to) {
+        startDate = dateRange.from;
+        endDate = dateRange.to;
+      } else {
+        switch (quickFilter) {
+          case '1d':
+            startDate = new Date();
+            endDate = new Date();
+            break;
+          case '7d':
+            startDate = addDays(new Date(), -7);
+            endDate = new Date();
+            break;
+          case '30d':
+            startDate = addDays(new Date(), -30);
+            endDate = new Date();
+            break;
+        }
       }
-    }
 
-    const res = await votes.getAnalyticsRelatorio(selectedCompany, {
-      startDate: format(startDate, 'yyyy-MM-dd'),
-      endDate: format(endDate, 'yyyy-MM-dd'),
-    });
+      const res = await votes.getAnalyticsRelatorio(selectedCompany, {
+        startDate: format(startDate, 'yyyy-MM-dd'),
+        endDate: format(endDate, 'yyyy-MM-dd'),
+      });
 
-    console.log('[DEBUG API Response]', res); // aqui você vê tudo que veio
-    return res;
-  },
-  enabled: !!selectedCompany,
-});
+      console.log('[DEBUG API Response]', res); // aqui você vê tudo que veio
+      return res;
+    },
+    enabled: !!selectedCompany,
+  });
 
 
 
@@ -337,7 +338,7 @@ export default function Relatorios() {
   };
 
   return (
-    
+
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
       <main className="flex-1 pt-24">
@@ -474,422 +475,445 @@ export default function Relatorios() {
               <div className="grid grid-cols-1 gap-6">
                 {/* Resumo Geral */}
                 <div ref={contentRef} className="bg-white">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card className="border-2">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <span className="text-2xl">📊</span>
+                            Total de Votos
+                          </CardTitle>
+                          <div className="px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
+                            {analytics.totalVotes} votos
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center justify-between">
+                          <div className="flex flex-col">
+                            <span className="text-sm text-gray-500">Votos no período</span>
+                            <span className="text-4xl font-bold">{analytics.totalVotes}</span>
+                          </div>
+                          <div className="flex flex-col items-end">
+                            <span className="text-sm text-gray-500">Média diária</span>
+                            <span className="text-2xl font-bold text-blue-600">
+                              {(analytics.totalVotes / 7).toFixed(1)}
+                            </span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-2">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <span className="text-2xl">📈</span>
+                            Taxa de Satisfação
+                          </CardTitle>
+                          <div className={`px-3 py-1 rounded-full text-sm font-medium ${satisfactionPercent >= 80 ? 'bg-green-100 text-green-800' :
+                            satisfactionPercent >= 60 ? 'bg-blue-100 text-blue-800' :
+                              satisfactionPercent >= 40 ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-red-100 text-red-800'
+                            }`}>
+                            {getSatisfactionLevel(satisfactionPercent)}
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center justify-between">
+                          <div className="flex flex-col">
+                            <span className="text-sm text-gray-500">Satisfação geral</span>
+                            <span className="text-4xl font-bold text-green-600">
+                              {satisfactionPercent.toFixed(1)}%
+                            </span>
+                          </div>
+                          <div className="flex flex-col items-end">
+                            <span className="text-sm text-gray-500">Votos positivos</span>
+                            <span className="text-2xl font-bold">
+                              {analytics.avaliacoesPorTipo.Ótimo + analytics.avaliacoesPorTipo.Bom}
+                            </span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Gráfico de Pesquisa Diária */}
                   <Card className="border-2">
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between">
                         <CardTitle className="flex items-center gap-2">
                           <span className="text-2xl">📊</span>
-                          Total de Votos
+                          Pesquisa Diária
                         </CardTitle>
-                        <div className="px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
-                          {analytics.totalVotes} votos
-                        </div>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="flex items-center justify-between">
-                        <div className="flex flex-col">
-                          <span className="text-sm text-gray-500">Votos no período</span>
-                          <span className="text-4xl font-bold">{analytics.totalVotes}</span>
-                        </div>
-                        <div className="flex flex-col items-end">
-                          <span className="text-sm text-gray-500">Média diária</span>
-                          <span className="text-2xl font-bold text-blue-600">
-                            {(analytics.totalVotes / 7).toFixed(1)}
-                          </span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-2">
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="flex items-center gap-2">
-                          <span className="text-2xl">📈</span>
-                          Taxa de Satisfação
-                        </CardTitle>
-                        <div className={`px-3 py-1 rounded-full text-sm font-medium ${satisfactionPercent >= 80 ? 'bg-green-100 text-green-800' :
-                          satisfactionPercent >= 60 ? 'bg-blue-100 text-blue-800' :
-                            satisfactionPercent >= 40 ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-red-100 text-red-800'
-                          }`}>
-                          {getSatisfactionLevel(satisfactionPercent)}
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-between">
-                        <div className="flex flex-col">
-                          <span className="text-sm text-gray-500">Satisfação geral</span>
-                          <span className="text-4xl font-bold text-green-600">
-                            {satisfactionPercent.toFixed(1)}%
-                          </span>
-                        </div>
-                        <div className="flex flex-col items-end">
-                          <span className="text-sm text-gray-500">Votos positivos</span>
-                          <span className="text-2xl font-bold">
-                            {analytics.avaliacoesPorTipo.Ótimo + analytics.avaliacoesPorTipo.Bom}
-                          </span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Gráfico de Pesquisa Diária */}
-                <Card className="border-2">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center gap-2">
-                        <span className="text-2xl">📊</span>
-                        Pesquisa Diária
-                      </CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[300px]"> {/* aumentei um pouco a altura */}
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={pesquisaDiariaData}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis
-                            dataKey="dia"
-                            interval={0}
-                            angle={-45}
-                            textAnchor="end"
-                          />
-                          <YAxis />
-                          <Tooltip />
-                          <Legend wrapperStyle={{ marginTop: 30 }} />
-                          <Bar dataKey="satisfeito" fill="#22c55e" name="Satisfeito" />
-                          <Bar dataKey="melhorar" fill="#ef4444" name="Melhorar" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-
-
-
-                <Card className="border-2 w-full">
-                  <CardHeader className="pb-2">
-                    <h2 className="text-2xl font-bold text-center">
-                      Resultado do Dia
-                      {/* : {format(new Date(), 'dd MMM/yyyy')} */}
-                    </h2>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full text-sm">
-                        <tbody>
-                          {pontosMelhoriaData
-                            .filter((entry) => {
-                              const empresaSelecionada = companiesList?.find(c => c.id === selectedCompany);
-                              // Oculta "Ruim" se a empresa tiver 3 botões
-                              if (empresaSelecionada?.qtdbutao === 3 && entry.name === 'Ruim') return false;
-                              return true;
-                            })
-                            .map((entry) => (
-                              <tr key={entry.name} className="border-t">
-                                <td className="py-2 flex items-center gap-2">
-                                  <span className="text-xl">
-                                    {{
-                                      'Ótimo': '😊',
-                                      'Bom': '😀',
-                                      'Regular': '😐',
-                                      'Ruim': '😞'
-                                    }[entry.name] || '❓'}
-                                  </span>
-                                  {entry.name}
-                                </td>
-                                <td className="py-2 text-center w-16">{entry.value || 0}</td>
-                                <td className="py-2 w-full">
-                                  <Progress value={parseFloat(getPercentage(entry.value))} className="h-2" />
-                                </td>
-                                <td className="py-2 text-center w-16">{getPercentage(entry.value)}%</td>
-                              </tr>
-                            ))}
-                          <tr className="border-t font-bold">
-                            <td className="py-2">Total</td>
-                            <td className="py-2 text-center">{totalVotes}</td>
-                            <td></td>
-                            <td></td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-
-
-                    <p className="text-xs text-gray-400 text-center mt-4">* Todos os horários</p>
-                  </CardContent>
-                </Card>
-
-
-
-
-
-                {/* Gráficos Principais */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Card className="border-2">
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="flex items-center gap-2">
-                          <span className="text-2xl">📊</span>
-                          Distribuição de Avaliações
-                        </CardTitle>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-500">Total:</span>
-                          <span className="font-bold">{analytics.totalVotes}</span>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="h-[250px]">
+                      <div className="h-[300px]"> {/* aumentei um pouco a altura */}
                         <ResponsiveContainer width="100%" height="100%">
-                          <RechartsBarChart data={pontosMelhoriaData.filter(entry => !deveOcultarRuim || entry.name !== 'Ruim')}>
-
+                          <BarChart data={pesquisaDiariaData}>
                             <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" />
-                            <YAxis />
-                            <Tooltip
-                              contentStyle={{
-                                backgroundColor: 'white',
-                                border: '1px solid #e5e7eb',
-                                borderRadius: '0.5rem',
-                                padding: '0.5rem'
-                              }}
-                              formatter={(value: number) => [`${value} votos`, '']}
+                            <XAxis
+                              dataKey="dia"
+                              interval={0}
+                              angle={-45}
+                              textAnchor="end"
                             />
-                            <Bar dataKey="value" fill="#8884d8" radius={[4, 4, 0, 0]}>
-                              {pontosMelhoriaData
-                                .filter(entry => !deveOcultarRuim || entry.name !== 'Ruim')
-                                .map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={COLORS[entry.name as keyof typeof COLORS]} />
-                                ))}
-                            </Bar>
-                          </RechartsBarChart>
+                            <YAxis />
+                            <Tooltip />
+                            <Legend wrapperStyle={{ marginTop: 30 }} />
+                            <Bar dataKey="satisfeito" fill="#22c55e" name="Satisfeito" />
+                            <Bar dataKey="melhorar" fill="#ef4444" name="Melhorar" />
+                          </BarChart>
                         </ResponsiveContainer>
                       </div>
-                      <div className="mt-4 grid grid-cols-2 gap-4">
-                        {pontosMelhoriaData
-                          .filter(entry => !deveOcultarRuim || entry.name !== 'Ruim')
-                          .map((entry) => (
-                            <div
-                              key={entry.name}
-                              className={`flex items-center justify-between p-3 rounded-lg border ${getRatingColor(entry.name)}`}
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="text-xl">{getRatingEmoji(entry.name)}</span>
-                                <span className="font-medium">{entry.name}</span>
-                              </div>
-                              <span className="font-bold">{entry.value}</span>
-                            </div>
-                          ))}
-                      </div>
                     </CardContent>
                   </Card>
 
-                  <Card className="border-2">
+
+
+                  <Card className="border-2 w-full">
                     <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="flex items-center gap-2">
-                          <span className="text-2xl">📊</span>
-                          Resultado do Dia
-                        </CardTitle>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-500">Data:</span>
-                          <span className="font-bold">{format(new Date(), 'dd/MM/yyyy')}</span>
-                        </div>
-                      </div>
+                      <h2 className="text-2xl font-bold text-center">
+                        Resultado do Dia
+                        {/* : {format(new Date(), 'dd MMM/yyyy')} */}
+                      </h2>
                     </CardHeader>
                     <CardContent>
-                      {(() => {
-                        const empresaSelecionada = companiesList?.find(c => c.id === selectedCompany);
-                        const deveOcultarRuim = empresaSelecionada?.qtdbutao === 3;
-
-                        const avaliacoesBase = ['Ótimo', 'Bom', 'Regular', 'Ruim'];
-                        const completado = avaliacoesBase.map((label) => {
-                          const original = resultadoDiaData.find((e) => e.name === label);
-                          return {
-                            name: label,
-                            value: original?.value ?? 0,
-                            color: COLORS[label as keyof typeof COLORS],
-                          };
-                        });
-
-                        const graficoData = completado
-                          .filter((entry) => (!deveOcultarRuim || entry.name !== 'Ruim') && entry.value > 0);
-
-                        const cartoesData = completado
-                          .filter((entry) => !deveOcultarRuim || entry.name !== 'Ruim');
-
-                        return (
-                          <>
-                            {/* Gráfico Pizza */}
-                            <div className="h-[250px]">
-                              <ResponsiveContainer width="100%" height="100%">
-                                <RechartsPieChart>
-                                  <Pie
-                                    data={graficoData}
-                                    cx="50%"
-                                    cy="50%"
-                                    labelLine={false}
-                                    outerRadius={80}
-                                    fill="#8884d8"
-                                    dataKey="value"
-                                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                  >
-                                    {graficoData.map((entry, index) => (
-                                      <Cell
-                                        key={`cell-${index}`}
-                                        fill={COLORS[entry.name as keyof typeof COLORS]}
-                                      />
-                                    ))}
-                                  </Pie>
-                                  <Tooltip
-                                    contentStyle={{
-                                      backgroundColor: 'white',
-                                      border: '1px solid #e5e7eb',
-                                      borderRadius: '0.5rem',
-                                      padding: '0.5rem',
-                                    }}
-                                    formatter={(value: number) => [`${value.toFixed(1)}%`, '']}
-                                  />
-                                  <Legend
-                                    verticalAlign="bottom"
-                                    height={36}
-                                    formatter={(value) => <span className="text-sm">{value}</span>}
-                                  />
-                                </RechartsPieChart>
-                              </ResponsiveContainer>
-                            </div>
-
-                            {/* Cartões com % por avaliação */}
-                            <div className="mt-4 grid grid-cols-2 gap-4">
-                              {cartoesData.map((entry) => (
-                                <div
-                                  key={entry.name}
-                                  className={`flex items-center justify-between p-3 rounded-lg border ${getRatingColor(entry.name)}`}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xl">{getRatingEmoji(entry.name)}</span>
-                                    <span className="font-medium">{entry.name}</span>
-                                  </div>
-                                  <span className="font-bold">{entry.value.toFixed(1)}%</span>
-                                </div>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full text-sm">
+                          <tbody>
+                            {pontosMelhoriaData
+                              .filter((entry) => {
+                                const empresaSelecionada = companiesList?.find(c => c.id === selectedCompany);
+                                // Oculta "Ruim" se a empresa tiver 3 botões
+                                if (empresaSelecionada?.qtdbutao === 3 && entry.name === 'Ruim') return false;
+                                return true;
+                              })
+                              .map((entry) => (
+                                <tr key={entry.name} className="border-t">
+                                  <td className="py-2 flex items-center gap-2">
+                                    <span className="text-xl">
+                                      {{
+                                        'Ótimo': '😊',
+                                        'Bom': '😀',
+                                        'Regular': '😐',
+                                        'Ruim': '😞'
+                                      }[entry.name] || '❓'}
+                                    </span>
+                                    {entry.name}
+                                  </td>
+                                  <td className="py-2 text-center w-16">{entry.value || 0}</td>
+                                  <td className="py-2 w-full">
+                                    <Progress value={parseFloat(getPercentage(entry.value))} className="h-2" />
+                                  </td>
+                                  <td className="py-2 text-center w-16">{getPercentage(entry.value)}%</td>
+                                </tr>
                               ))}
-                            </div>
-                          </>
-                        );
-                      })()}
+                            <tr className="border-t font-bold">
+                              <td className="py-2">Total</td>
+                              <td className="py-2 text-center">{totalVotes}</td>
+                              <td></td>
+                              <td></td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+
+
+                      <p className="text-xs text-gray-400 text-center mt-4">* Todos os horários</p>
                     </CardContent>
                   </Card>
 
 
-                </div>
-                <>
-                <style>{`
+
+
+
+                  {/* Gráficos Principais */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <Card className="border-2">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <span className="text-2xl">📊</span>
+                            Distribuição de Avaliações
+                          </CardTitle>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-500">Total:</span>
+                            <span className="font-bold">{analytics.totalVotes}</span>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="h-[250px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <RechartsBarChart data={pontosMelhoriaData.filter(entry => !deveOcultarRuim || entry.name !== 'Ruim')}>
+
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="name" />
+                              <YAxis />
+                              <Tooltip
+                                contentStyle={{
+                                  backgroundColor: 'white',
+                                  border: '1px solid #e5e7eb',
+                                  borderRadius: '0.5rem',
+                                  padding: '0.5rem'
+                                }}
+                                formatter={(value: number) => [`${value} votos`, '']}
+                              />
+                              <Bar dataKey="value" fill="#8884d8" radius={[4, 4, 0, 0]}>
+                                {pontosMelhoriaData
+                                  .filter(entry => !deveOcultarRuim || entry.name !== 'Ruim')
+                                  .map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[entry.name as keyof typeof COLORS]} />
+                                  ))}
+                              </Bar>
+                            </RechartsBarChart>
+                          </ResponsiveContainer>
+                        </div>
+                        <div className="mt-4 grid grid-cols-2 gap-4">
+                          {pontosMelhoriaData
+                            .filter(entry => !deveOcultarRuim || entry.name !== 'Ruim')
+                            .map((entry) => (
+                              <div
+                                key={entry.name}
+                                className={`flex items-center justify-between p-3 rounded-lg border ${getRatingColor(entry.name)}`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xl">{getRatingEmoji(entry.name)}</span>
+                                  <span className="font-medium">{entry.name}</span>
+                                </div>
+                                <span className="font-bold">{entry.value}</span>
+                              </div>
+                            ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-2">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <span className="text-2xl">📊</span>
+                            Resultado do Dia
+                          </CardTitle>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-500">Data:</span>
+                            <span className="font-bold">{format(new Date(), 'dd/MM/yyyy')}</span>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        {(() => {
+                          const empresaSelecionada = companiesList?.find(c => c.id === selectedCompany);
+                          const deveOcultarRuim = empresaSelecionada?.qtdbutao === 3;
+
+                          const avaliacoesBase = ['Ótimo', 'Bom', 'Regular', 'Ruim'];
+                          const completado = avaliacoesBase.map((label) => {
+                            const original = resultadoDiaData.find((e) => e.name === label);
+                            return {
+                              name: label,
+                              value: original?.value ?? 0,
+                              color: COLORS[label as keyof typeof COLORS],
+                            };
+                          });
+
+                          const graficoData = completado
+                            .filter((entry) => (!deveOcultarRuim || entry.name !== 'Ruim') && entry.value > 0);
+
+                          const cartoesData = completado
+                            .filter((entry) => !deveOcultarRuim || entry.name !== 'Ruim');
+
+                          return (
+                            <>
+                              {/* Gráfico Pizza */}
+                              <div className="h-[250px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <RechartsPieChart>
+                                    <Pie
+                                      data={graficoData}
+                                      cx="50%"
+                                      cy="50%"
+                                      labelLine={false}
+                                      outerRadius={80}
+                                      fill="#8884d8"
+                                      dataKey="value"
+                                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                    >
+                                      {graficoData.map((entry, index) => (
+                                        <Cell
+                                          key={`cell-${index}`}
+                                          fill={COLORS[entry.name as keyof typeof COLORS]}
+                                        />
+                                      ))}
+                                    </Pie>
+                                    <Tooltip
+                                      contentStyle={{
+                                        backgroundColor: 'white',
+                                        border: '1px solid #e5e7eb',
+                                        borderRadius: '0.5rem',
+                                        padding: '0.5rem',
+                                      }}
+                                      formatter={(value: number) => [`${value.toFixed(1)}%`, '']}
+                                    />
+                                    <Legend
+                                      verticalAlign="bottom"
+                                      height={36}
+                                      formatter={(value) => <span className="text-sm">{value}</span>}
+                                    />
+                                  </RechartsPieChart>
+                                </ResponsiveContainer>
+                              </div>
+
+                              {/* Cartões com % por avaliação */}
+                              <div className="mt-4 grid grid-cols-2 gap-4">
+                                {cartoesData.map((entry) => (
+                                  <div
+                                    key={entry.name}
+                                    className={`flex items-center justify-between p-3 rounded-lg border ${getRatingColor(entry.name)}`}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xl">{getRatingEmoji(entry.name)}</span>
+                                      <span className="font-medium">{entry.name}</span>
+                                    </div>
+                                    <span className="font-bold">{entry.value.toFixed(1)}%</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </CardContent>
+                    </Card>
+
+
+                  </div>
+                  <>
+                    <style>{`
                   .pdf-break {
                     height: 0;
                   }
                 `}</style>
 
-                <div className="pdf-break" />
-              </>
-               
-                {/* Análise por Serviço */}
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {(() => {
-                      const empresaSelecionada = companiesList?.find(c => c.id === selectedCompany);
-                      const deveOcultarRuim = empresaSelecionada?.qtdbutao === 3;
+                    <div className="pdf-break" />
+                  </>
 
-                      return Object.entries(analytics.votesByService)
-                        .filter(([_, data]) => data.serviceInfo)
-                        .map(([_, data]) => {
-                          const satisfactionPercent = data.percentuais.Ótimo + data.percentuais.Bom;
+                  {/* Análise por Serviço */}
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {(() => {
+                        const empresaSelecionada = companiesList?.find(c => c.id === selectedCompany);
+                        const deveOcultarRuim = empresaSelecionada?.qtdbutao === 3;
 
-                          const avaliacoesBase = ['Ótimo', 'Bom', 'Regular', 'Ruim'];
-                          const avaliacaoCompletada = avaliacoesBase
-                            .filter((label) => !deveOcultarRuim || label !== 'Ruim')
-                            .map((label) => ({
-                              label,
-                              count: data.avaliacoes[label as keyof typeof data.avaliacoes] ?? 0,
-                              percent: data.percentuais[label as keyof typeof data.percentuais] ?? 0,
-                            }));
+                        return Object.entries(analytics.votesByService)
+                          .filter(([_, data]) => data.serviceInfo)
+                          .map(([_, data]) => {
+                            const satisfactionPercent = data.percentuais.Ótimo + data.percentuais.Bom;
 
-                          return (
-                            <div key={data.serviceInfo?.nome} className="border rounded-lg p-4 hover:shadow-lg transition-shadow">
-                              <div className="flex items-center justify-between mb-4">
-                                <div>
-                                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                                    <span className="text-2xl">{getServiceEmoji(data.serviceInfo?.nome || '')}</span>
-                                    {data.serviceInfo?.nome}
-                                  </h3>
-                                  <p className="text-sm text-muted-foreground">
-                                    {formatTime(data.serviceInfo?.hora_inicio)} - {formatTime(data.serviceInfo?.hora_final)}
-                                  </p>
-                                </div>
-                                <div className={`px-3 py-1 rounded-full text-sm font-medium ${satisfactionPercent >= 80
-                                  ? 'bg-green-100 text-green-800'
-                                  : satisfactionPercent >= 60
-                                    ? 'bg-blue-100 text-blue-800'
-                                    : satisfactionPercent >= 40
-                                      ? 'bg-yellow-100 text-yellow-800'
-                                      : 'bg-red-100 text-red-800'
-                                  }`}>
-                                  {satisfactionPercent.toFixed(1)}%
-                                </div>
-                              </div>
+                            const avaliacoesBase = ['Ótimo', 'Bom', 'Regular', 'Ruim'];
+                            const avaliacaoCompletada = avaliacoesBase
+                              .filter((label) => !deveOcultarRuim || label !== 'Ruim')
+                              .map((label) => ({
+                                label,
+                                count: data.avaliacoes[label as keyof typeof data.avaliacoes] ?? 0,
+                                percent: data.percentuais[label as keyof typeof data.percentuais] ?? 0,
+                              }));
 
-                              <div className="space-y-2">
-                                {avaliacaoCompletada.map(({ label, count, percent }) => (
-                                  <div
-                                    key={label}
-                                    className={`flex items-center justify-between p-2 rounded-lg ${getRatingColor(label)}`}
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-xl">{getRatingEmoji(label)}</span>
-                                      <span className="font-medium">{label}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-bold">{count}</span>
-                                      <span className="text-sm text-muted-foreground">
-                                        ({percent.toFixed(1)}%)
-                                      </span>
-                                    </div>
+                            return (
+                              <div key={data.serviceInfo?.nome} className="border rounded-lg p-4 hover:shadow-lg transition-shadow">
+                                <div className="flex items-center justify-between mb-4">
+                                  <div>
+                                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                                      <span className="text-2xl">{getServiceEmoji(data.serviceInfo?.nome || '')}</span>
+                                      {data.serviceInfo?.nome}
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                      {formatTime(data.serviceInfo?.hora_inicio)} - {formatTime(data.serviceInfo?.hora_final)}
+                                    </p>
                                   </div>
-                                ))}
-                              </div>
+                                  <div className={`px-3 py-1 rounded-full text-sm font-medium ${satisfactionPercent >= 80
+                                    ? 'bg-green-100 text-green-800'
+                                    : satisfactionPercent >= 60
+                                      ? 'bg-blue-100 text-blue-800'
+                                      : satisfactionPercent >= 40
+                                        ? 'bg-yellow-100 text-yellow-800'
+                                        : 'bg-red-100 text-red-800'
+                                    }`}>
+                                    {satisfactionPercent.toFixed(1)}%
+                                  </div>
+                                </div>
 
-                              {/* Blocos adicionais */}
-                              <div className="grid grid-cols-3 gap-2 mt-4">
-                                <div className="bg-green-100 text-green-800 text-center p-3 rounded-lg shadow">
-                                  <p className="text-sm font-semibold">Qtd. de Votos</p>
-                                  <p className="text-xl font-bold">{data.total}</p>
+                                <div className="space-y-2">
+                                  {avaliacaoCompletada.map(({ label, count, percent }) => (
+                                    <div
+                                      key={label}
+                                      className={`flex items-center justify-between p-2 rounded-lg ${getRatingColor(label)}`}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xl">{getRatingEmoji(label)}</span>
+                                        <span className="font-medium">{label}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-bold">{count}</span>
+                                        <span className="text-sm text-muted-foreground">
+                                          ({percent.toFixed(1)}%)
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
-                                <div className="bg-yellow-100 text-yellow-800 text-center p-3 rounded-lg shadow">
-                                  <p className="text-sm font-semibold">Qtd. Refeições</p>
-                                  <p className="text-xl font-bold">{(data.serviceInfo?.qtd_ref || 0) * diasSelecionados}</p>
-                                </div>
-                                <div className="bg-red-100 text-red-800 text-center p-3 rounded-lg shadow">
-                                  <p className="text-sm font-semibold">Diferença</p>
-                                  <p className="text-xl font-bold">
-                                    {((data.serviceInfo?.qtd_ref || 0) * diasSelecionados) - data.total}
-                                  </p>
+
+                                {/* Blocos adicionais */}
+                                <div className="grid grid-cols-4 gap-2 mt-4">
+                                  <div className="bg-green-100 text-green-800 text-center p-3 rounded-lg shadow">
+                                    <p className="text-sm font-semibold">Qtd. de Votos</p>
+                                    <p className="text-xl font-bold">{data.total}</p>
+                                  </div>
+                                  <div className="bg-yellow-100 text-yellow-800 text-center p-3 rounded-lg shadow">
+                                    <p className="text-sm font-semibold">Qtd. Refeições</p>
+                                    <p className="text-xl font-bold">{(data.serviceInfo?.qtd_ref || 0) * diasSelecionados}</p>
+                                  </div>
+                                  <div className="bg-red-100 text-red-800 text-center p-3 rounded-lg shadow">
+                                    <p className="text-sm font-semibold">Diferença</p>
+                                    <p className="text-xl font-bold">
+                                      {((data.serviceInfo?.qtd_ref || 0) * diasSelecionados) - data.total}
+                                    </p>
+                                  </div>
+                                  <div className="bg-orange-100 text-orange-800 text-center p-3 rounded-lg shadow">
+                                    <p className="text-sm font-semibold">Diferença %</p>
+                                    <p className="text-xl font-bold">
+                                      {(() => {
+                                        const qtdRefeicoes = (data.serviceInfo?.qtd_ref || 0) * diasSelecionados;
+                                        const diferenca = qtdRefeicoes - data.total;
+
+                                        // Se não há refeições esperadas, calcula em relação aos votos
+                                        if (qtdRefeicoes === 0 && data.total > 0) {
+                                          return '100.0%';
+                                        }
+
+                                        // Se não há votos nem refeições
+                                        if (qtdRefeicoes === 0 && data.total === 0) {
+                                          return '0.0%';
+                                        }
+
+                                        // Cálculo normal: diferença / refeições esperadas
+                                        const percentual = (Math.abs(diferenca) / qtdRefeicoes) * 100;
+                                        return `${percentual.toFixed(1)}%`;
+                                      })()}
+                                    </p>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          );
-                        });
-                    })()}
-                  </div>
-                </CardContent>
-  </div>
-                      {/* Marcador onde para */}
-  <div id="pdf-end-marker"></div>
-                
+                            );
+                          });
+                      })()}
+                    </div>
+                  </CardContent>
+                </div>
+                {/* Marcador onde para */}
+                <div id="pdf-end-marker"></div>
+
 
 
                 <Card className="border-2">
@@ -1021,6 +1045,6 @@ export default function Relatorios() {
         </div>
       </main>
     </div>
-  
+
   );
 }

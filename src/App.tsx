@@ -7,6 +7,8 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import Sidebar from "./components/Sidebar";
+import ErrorBoundary from "./components/ErrorBoundary";
+import { useTranslationDetector } from "./hooks/useTranslationDetector";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -17,6 +19,7 @@ import ServiceTypes from "./pages/ServiceTypes";
 import Votes from "./pages/Votes";
 import Users from "./pages/Users";
 import Relatorios from "./pages/Relatorios";
+import StatusOperacao from "./pages/StatusOperacao";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -32,6 +35,7 @@ const queryClient = new QueryClient({
 
 const AppContent = () => {
   const { isAuthenticated, isLoading } = useAuth();
+  useTranslationDetector(); // Detect browser translation
 
   if (isLoading) {
     return (
@@ -60,6 +64,7 @@ const AppContent = () => {
                   <Route path="/service-types" element={<ProtectedRoute><ServiceTypes /></ProtectedRoute>} />
                   <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
                   <Route path="/relatorios" element={<ProtectedRoute><Relatorios /></ProtectedRoute>} />
+                  <Route path="/status-operacao" element={<ProtectedRoute><StatusOperacao /></ProtectedRoute>} />
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />
                 </Routes>
               </div>
@@ -79,6 +84,7 @@ const AppContent = () => {
             <Route path="/votes" element={<ProtectedRoute><Votes /></ProtectedRoute>} />
             <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
             <Route path="/relatorios" element={<ProtectedRoute><Relatorios /></ProtectedRoute>} />
+            <Route path="/status-operacao" element={<ProtectedRoute><StatusOperacao /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         </div>
@@ -96,7 +102,9 @@ const App = () => (
         <AuthProvider>
           <ThemeProvider>
             <SidebarProvider>
-              <AppContent />
+              <ErrorBoundary>
+                <AppContent />
+              </ErrorBoundary>
             </SidebarProvider>
           </ThemeProvider>
         </AuthProvider>

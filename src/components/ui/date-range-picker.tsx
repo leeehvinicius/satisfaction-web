@@ -22,7 +22,7 @@ export function DateRangePicker({
   onDateChange,
 }: DateRangePickerProps) {
   return (
-    <div className={cn("grid gap-2")}>
+    <div translate="no" className={cn("grid gap-2")}>
       <Popover>
         <PopoverTrigger asChild>
           <Button

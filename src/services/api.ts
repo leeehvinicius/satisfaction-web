@@ -168,7 +168,7 @@ export const companies = {
       const company = cachedCompanies.find(c => c.id === id);
       if (company) return company;
     }
-    
+
     // Fallback to API request if not in cache
     const response = await api.get(`/companies/${id}`);
     return response.data;
@@ -240,14 +240,14 @@ export const votes = {
           return [] as Company[];
         })
       ]);
-      
+
       const votes = votesResponse.data;
-      
+
       // Create a map of companies for quick lookup
       const companiesMap = new Map<string, Company>(
         allCompanies.map(company => [company.id, company] as [string, Company])
       );
-      
+
       // Map votes with company data using the lookup map
       const votesWithCompany = votes.map((vote: Vote) => ({
         ...vote,
@@ -343,6 +343,40 @@ export const votes = {
   },
   delete: async (id: string) => {
     const response = await api.delete(`/votes/${id}`);
+    return response.data;
+  },
+  getOperationStatus: async (startDate?: string, endDate?: string, month?: string) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    if (month) params.append('month', month);
+    const response = await api.get(`/votes/operation-status?${params.toString()}`);
+    return response.data;
+  },
+  getCompanyRanking: async (startDate?: string, endDate?: string, month?: string, limit?: number) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    if (month) params.append('month', month);
+    if (limit) params.append('limit', limit.toString());
+    const response = await api.get(`/votes/company-ranking?${params.toString()}`);
+    return response.data;
+  },
+  getWorstCompanyRanking: async (startDate?: string, endDate?: string, month?: string, limit?: number) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    if (month) params.append('month', month);
+    if (limit) params.append('limit', limit.toString());
+    const response = await api.get(`/votes/company-ranking-worst?${params.toString()}`);
+    return response.data;
+  },
+  getCompleteCompanyRanking: async (startDate?: string, endDate?: string, month?: string) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    if (month) params.append('month', month);
+    const response = await api.get(`/votes/company-ranking-complete?${params.toString()}`);
     return response.data;
   },
 };
