@@ -41,8 +41,7 @@ const Sidebar: React.FC = () => {
 
   // Fetch operation status for sidebar metrics
   const now = new Date();
-  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const startDate = firstDayOfMonth.toISOString().split('T')[0];
+  const startDate = now.toISOString().split('T')[0];
   const endDate = now.toISOString().split('T')[0];
 
   const { data: operationStatus } = useQuery({
