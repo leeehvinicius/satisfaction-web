@@ -156,6 +156,11 @@ export const companies = {
     return response.data;
   },
 
+  getLight: async (): Promise<{ id: string, nome: string, status: boolean }[]> => {
+    const response = await api.get('/companies/light');
+    return response.data;
+  },
+
   getMine: async (): Promise<Company[]> => {
     const response = await api.get('/companies/my/my');
     return response.data;
@@ -232,20 +237,20 @@ export const votes = {
   },
   getAll: async (): Promise<Vote[]> => {
     try {
-      // Fetch votes and companies in parallel
-      const [votesResponse, allCompanies] = await Promise.all([
+      // Fetch votes and light companies in parallel to avoid transferring huge payload
+      const [votesResponse, lightCompanies] = await Promise.all([
         api.get('/votes'),
-        companies.getAll().catch(error => {
+        companies.getLight().catch(error => {
           console.error('Erro ao carregar empresas:', error);
-          return [] as Company[];
+          return [] as { id: string, nome: string, status: boolean }[];
         })
       ]);
 
       const votes = votesResponse.data;
 
       // Create a map of companies for quick lookup
-      const companiesMap = new Map<string, Company>(
-        allCompanies.map(company => [company.id, company] as [string, Company])
+      const companiesMap = new Map<string, any>(
+        lightCompanies.map(company => [company.id, company])
       );
 
       // Map votes with company data using the lookup map

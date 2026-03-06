@@ -76,21 +76,21 @@ const Dashboard: React.FC = () => {
       setLoading(true);
 
       // Fetch all required data
-      const [allVotes, allCompanies, allServiceTypes] = await Promise.all([
+      const [allVotes, allCompaniesLight, allServiceTypes] = await Promise.all([
         votes.getAll(),
-        companies.getAll().catch(error => {
-          console.error('Erro ao carregar empresas:', error);
-          return [];
+        companies.getLight().catch(error => {
+          console.error('Erro ao carregar empresas light:', error);
+          return [] as { id: string, nome: string, status: boolean }[];
         }),
         serviceTypes.getAll()
       ]);
 
       // Set totals
       setTotalVotes(allVotes.length);
-      setTotalCompanies(allCompanies.length);
+      setTotalCompanies(allCompaniesLight.length);
       setTotalServiceTypes(allServiceTypes.length);
       setAllVotes(allVotes);
-      setCompaniesList(allCompanies);
+      setCompaniesList(allCompaniesLight as any);
 
       // Process company votes
       const companyVotesMap = new Map<string, number>();
@@ -100,7 +100,7 @@ const Dashboard: React.FC = () => {
         companyVotesMap.set(companyId, (companyVotesMap.get(companyId) || 0) + 1);
       });
 
-      const processedCompanyVotes = allCompanies.map((company: Company) => ({
+      const processedCompanyVotes = allCompaniesLight.map((company) => ({
         name: company.nome,
         votes: companyVotesMap.get(company.id) || 0,
         id: company.id
@@ -151,7 +151,7 @@ const Dashboard: React.FC = () => {
         fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
 
         if (voteTime > fiveMinutesAgo) {
-          const company = allCompanies.find((c: Company) => c.id === latestVote.id_empresa);
+          const company = allCompaniesLight.find((c) => c.id === latestVote.id_empresa);
           const service = allServiceTypes.find((s: ServiceType) => s.id === latestVote.id_tipo_servico);
 
           if (company && service) {
