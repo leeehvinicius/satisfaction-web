@@ -60,7 +60,7 @@ const Dashboard: React.FC = () => {
   const [companiesList, setCompaniesList] = useState<Company[]>([]);
 
 
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -75,10 +75,13 @@ const Dashboard: React.FC = () => {
     try {
       setLoading(true);
 
+      const isAdminOrTI = user?.perfil === 'Administrador(a)' || user?.perfil === 'T.I';
+      const companiesPromise = isAdminOrTI ? companies.getLight() : companies.getLightMy();
+
       // Fetch all required data
       const [allVotes, allCompaniesLight, allServiceTypes] = await Promise.all([
         votes.getAll(),
-        companies.getLight().catch(error => {
+        companiesPromise.catch(error => {
           console.error('Erro ao carregar empresas light:', error);
           return [] as { id: string, nome: string, status: boolean }[];
         }),

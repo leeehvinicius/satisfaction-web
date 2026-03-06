@@ -161,6 +161,11 @@ export const companies = {
     return response.data;
   },
 
+  getLightMy: async (): Promise<{ id: string, nome: string, status: boolean }[]> => {
+    const response = await api.get('/companies/light-my');
+    return response.data;
+  },
+
   getMine: async (): Promise<Company[]> => {
     const response = await api.get('/companies/my/my');
     return response.data;
@@ -237,10 +242,23 @@ export const votes = {
   },
   getAll: async (): Promise<Vote[]> => {
     try {
+      const storedUser = localStorage.getItem('user');
+      let isAdminOrTI = false;
+      if (storedUser) {
+        try {
+          const user = JSON.parse(storedUser);
+          isAdminOrTI = user.perfil === 'Administrador(a)' || user.perfil === 'T.I';
+        } catch (e) {
+          console.error('Error parsing user from localStorage', e);
+        }
+      }
+
+      const companiesPromise = isAdminOrTI ? companies.getLight() : companies.getLightMy();
+
       // Fetch votes and light companies in parallel to avoid transferring huge payload
       const [votesResponse, lightCompanies] = await Promise.all([
         api.get('/votes'),
-        companies.getLight().catch(error => {
+        companiesPromise.catch(error => {
           console.error('Erro ao carregar empresas:', error);
           return [] as { id: string, nome: string, status: boolean }[];
         })
