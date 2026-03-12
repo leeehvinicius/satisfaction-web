@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,19 +10,20 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/s
 import Sidebar from "./components/Sidebar";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { useTranslationDetector } from "./hooks/useTranslationDetector";
-import Index from "./pages/Index";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Dashboard from "./pages/Dashboard";
-import Monitor from "./pages/Monitor";
-import Companies from "./pages/Companies";
-import ServiceTypes from "./pages/ServiceTypes";
-import Votes from "./pages/Votes";
-import Users from "./pages/Users";
-import Relatorios from "./pages/Relatorios";
-import StatusOperacao from "./pages/StatusOperacao";
-import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
+
+const Index = lazy(() => import("./pages/Index"));
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Monitor = lazy(() => import("./pages/Monitor"));
+const Companies = lazy(() => import("./pages/Companies"));
+const ServiceTypes = lazy(() => import("./pages/ServiceTypes"));
+const Votes = lazy(() => import("./pages/Votes"));
+const Users = lazy(() => import("./pages/Users"));
+const Relatorios = lazy(() => import("./pages/Relatorios"));
+const StatusOperacao = lazy(() => import("./pages/StatusOperacao"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Create a client for React Query
 const queryClient = new QueryClient({
@@ -45,6 +47,12 @@ const AppContent = () => {
     );
   }
 
+  const fallback = (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+    </div>
+  );
+
   return (
     <div className="flex min-h-screen w-full">
       {isAuthenticated ? (
@@ -54,6 +62,7 @@ const AppContent = () => {
             <SidebarInset>
               <div className="container mx-auto px-4 py-4">
                 <SidebarTrigger className="fixed top-4 left-4 z-50 md:hidden" />
+                <Suspense fallback={fallback}>
                 <Routes>
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />
                   <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -67,12 +76,14 @@ const AppContent = () => {
                   <Route path="/status-operacao" element={<ProtectedRoute><StatusOperacao /></ProtectedRoute>} />
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />
                 </Routes>
+                </Suspense>
               </div>
             </SidebarInset>
           </div>
         </>
       ) : (
         <div className="w-full">
+          <Suspense fallback={fallback}>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
@@ -87,6 +98,7 @@ const AppContent = () => {
             <Route path="/status-operacao" element={<ProtectedRoute><StatusOperacao /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
+          </Suspense>
         </div>
       )}
     </div>
