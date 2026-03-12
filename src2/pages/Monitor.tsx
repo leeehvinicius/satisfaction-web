@@ -378,15 +378,6 @@ const Monitor: React.FC = () => {
     }
   }, [initialAnalytics]);
 
-  // Refetch data periodically
-  useEffect(() => {
-    const interval = setInterval(() => {
-      refetch();
-    }, 10000); // Refetch every 10 seconds
-
-    return () => clearInterval(interval);
-  }, [refetch]);
-
   const checkAlerts = (data: Analytics) => {
     const newAlerts = [];
 
