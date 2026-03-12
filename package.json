@@ -9,7 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview --host 0.0.0.0 --port 3001",
-    "start": "vite preview --host 0.0.0.0 --port 3001",
+    "start": "node -e \"const fs=require('fs'); if(!fs.existsSync('dist/index.html')){ console.error('ERRO: Pasta dist/ nao existe. Rode npm run build antes (ex: no deploy).'); process.exit(1); }\" && vite preview --host 0.0.0.0 --port 3001",
     "start:build": "npm run build && npm run start"
     },
   "dependencies": {
