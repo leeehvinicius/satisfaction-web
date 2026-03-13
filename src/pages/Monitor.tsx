@@ -136,12 +136,28 @@ interface Company {
 
 type TimeRange = "1h" | "24h" | "7d" | "30d";
 
+const transformAnalytics = (data: VoteAnalytics): Analytics => {
+  return {
+    ...data,
+    averageRating: calculateAverageRating(data.avaliacoesPorTipo),
+    votesByService: Object.entries(data.votesByService).reduce(
+      (acc, [key, value]) => ({
+        ...acc,
+        [key]: {
+          ...value,
+          average: calculateAverageRating((value as any).avaliacoes),
+        },
+      }),
+      {} as Analytics["votesByService"]
+    ),
+  };
+};
+
 const Monitor: React.FC = () => {
   const { companyId: selectedCompanyId } = useParams<{ companyId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [timeRange, setTimeRange] = useState<TimeRange>("24h");
   const [alerts, setAlerts] = useState<
@@ -212,20 +228,7 @@ const Monitor: React.FC = () => {
           if (!data) {
             throw new Error("Nenhum dado retornado da API");
           }
-          return {
-            ...data,
-            averageRating: calculateAverageRating(data.avaliacoesPorTipo),
-            votesByService: Object.entries(data.votesByService).reduce(
-              (acc, [key, value]) => ({
-                ...acc,
-                [key]: {
-                  ...value,
-                  average: calculateAverageRating((value as any).avaliacoes),
-                },
-              }),
-              {}
-            ),
-          };
+          return transformAnalytics(data as VoteAnalytics);
         } catch (error) {
           console.error("Error fetching analytics:", error);
           toast({
@@ -380,82 +383,37 @@ const Monitor: React.FC = () => {
     return totalWeight > 0 ? weightedSum / totalWeight : 0;
   };
 
-  // Configuração do WebSocket
+  // Configuração do WebSocket (tempo real de votos)
   useEffect(() => {
     if (!selectedCompanyId) return;
 
-    const newSocket = io(import.meta.env.VITE_API_URL as string);
-    // const newSocket = io('https://api.vvrefeicoes.com.br');
-    setSocket(newSocket);
+    const socket: Socket = io("https://pesquisa.api.vvrefeicoes.com.br", {
+      path: "/socket.io",
+      transports: ["websocket"],
+    });
 
-    newSocket.emit("joinCompanyRoom", selectedCompanyId);
+    socket.on("connect", () => {
+      console.log("[WS] conectado:", socket.id);
+      socket.emit("joinCompanyRoom", selectedCompanyId);
+    });
 
-    newSocket.on("voteUpdate", async (updatedVote: Vote) => {
-      // Update analytics state immediately
-      setAnalytics((prevAnalytics) => {
-        if (!prevAnalytics) return null;
+    socket.on("voteUpdate", (analyticsFromWs: VoteAnalytics) => {
+      const normalized = transformAnalytics(analyticsFromWs);
+      setAnalytics(normalized);
+      checkAlerts(normalized);
+      console.log("[WS] voteUpdate recebido");
+    });
 
-        // Atualiza os votos recentes
-        const updatedRecentVotes = [updatedVote, ...prevAnalytics.recentVotes];
-
-        // Atualiza as avaliações por tipo
-        const updatedAvaliacoesPorTipo = {
-          ...prevAnalytics.avaliacoesPorTipo,
-          [updatedVote.avaliacao]:
-            (prevAnalytics.avaliacoesPorTipo[updatedVote.avaliacao] || 0) + 1,
-        };
-
-        // Atualiza os votos por serviço
-        const updatedVotesByService = { ...prevAnalytics.votesByService };
-        if (updatedVote.id_tipo_servico) {
-          const serviceKey = updatedVote.id_tipo_servico;
-          if (!updatedVotesByService[serviceKey]) {
-            updatedVotesByService[serviceKey] = {
-              total: 0,
-              average: 0,
-              avaliacoes: {},
-              percentuais: {},
-              votes: [],
-            };
-          }
-
-          const serviceData = updatedVotesByService[serviceKey];
-          serviceData.total += 1;
-          serviceData.votes = [updatedVote, ...serviceData.votes];
-          serviceData.avaliacoes = {
-            ...serviceData.avaliacoes,
-            [updatedVote.avaliacao]:
-              (serviceData.avaliacoes[updatedVote.avaliacao] || 0) + 1,
-          };
-        }
-
-        console.log("Updating analytics with new vote:", updatedVote);
-
-        return {
-          ...prevAnalytics,
-          recentVotes: updatedRecentVotes,
-          totalVotes: prevAnalytics.totalVotes + 1,
-          avaliacoesPorTipo: updatedAvaliacoesPorTipo,
-          votesByService: updatedVotesByService,
-        };
-      });
-
-      // Refetch to get fresh data
-      await refetch();
-
-      // Show toast notification
-      toast({
-        title: "Novo voto recebido!",
-        description: "Os dados foram atualizados.",
-        variant: "default",
-      });
+    socket.on("disconnect", () => {
+      console.log("[WS] desconectado");
     });
 
     return () => {
-      newSocket.emit("leaveCompanyRoom", selectedCompanyId);
-      newSocket.disconnect();
+      socket.emit("leaveCompanyRoom", selectedCompanyId);
+      socket.off("voteUpdate");
+      socket.disconnect();
     };
-  }, [selectedCompanyId, toast, refetch]);
+  }, [selectedCompanyId]);
 
   // Update analytics state when initialAnalytics changes
   useEffect(() => {
