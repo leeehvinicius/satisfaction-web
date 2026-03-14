@@ -112,6 +112,13 @@ interface Analytics {
         [key: string]: number;
       };
       votes: Vote[];
+      serviceInfo?: {
+        nome: string;
+        tipo_servico?: string;
+        hora_inicio?: string;
+        hora_final?: string;
+        qtd_ref?: number;
+      };
     };
   };
   recentVotes: Vote[];
@@ -549,6 +556,57 @@ const Monitor: React.FC = () => {
     return Array.from(uniqueById.values());
   };
 
+  const getDisplayCounts = () => {
+    const empty = { otimo: 0, bom: 0, regular: 0, ruim: 0, total: 0 };
+    if (!analytics) return empty;
+
+    const toCounts = (avaliacoes: Record<string, number> | undefined) => {
+      if (!avaliacoes) return empty;
+
+      const otimo =
+        Number(avaliacoes["Ótimo"] || 0) +
+        Number(avaliacoes["Ã“timo"] || 0) +
+        Number(avaliacoes["Otimo"] || 0);
+      const bom = Number(avaliacoes["Bom"] || 0);
+      const regular = Number(avaliacoes["Regular"] || 0);
+      const ruim = Number(avaliacoes["Ruim"] || 0);
+      const total = otimo + bom + regular + ruim;
+
+      return { otimo, bom, regular, ruim, total };
+    };
+
+    if (!activeService) {
+      return toCounts(analytics.avaliacoesPorTipo);
+    }
+
+    const matchedServices = Object.entries(analytics.votesByService).filter(
+      ([serviceKey, serviceData]) =>
+        serviceKey === activeService.id ||
+        serviceKey === activeService.tipo_servico ||
+        serviceData?.serviceInfo?.nome === activeService.nome ||
+        serviceData?.serviceInfo?.tipo_servico === activeService.tipo_servico
+    );
+
+    if (matchedServices.length === 0) {
+      return toCounts(analytics.avaliacoesPorTipo);
+    }
+
+    const mergedAvaliacaoCounts = matchedServices.reduce(
+      (acc, [, serviceData]) => {
+        Object.entries(serviceData.avaliacoes || {}).forEach(([rating, count]) => {
+          acc[rating] = (acc[rating] || 0) + Number(count || 0);
+        });
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+
+    const serviceCounts = toCounts(mergedAvaliacaoCounts);
+    if (serviceCounts.total > 0) return serviceCounts;
+
+    return toCounts(analytics.avaliacoesPorTipo);
+  };
+
   const getRatingValue = (avaliacao: string): number => {
     switch (avaliacao) {
       case "Ótimo":
@@ -725,6 +783,7 @@ const Monitor: React.FC = () => {
   }
 
   const filteredVotes = getFilteredVotes(analytics.recentVotes);
+  const displayCounts = getDisplayCounts();
   const votesInRange = filteredVotes.length;
   const averageInRange =
     filteredVotes.reduce(
@@ -828,6 +887,7 @@ const Monitor: React.FC = () => {
           <CardContent>
             <VoteStats
               votes={filteredVotes}
+              counts={displayCounts}
               qtdbutao={
                 companiesList?.find((c) => c.id === selectedCompanyId)
                   ?.qtdbutao ?? 0
