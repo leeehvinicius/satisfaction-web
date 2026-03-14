@@ -8,7 +8,6 @@ import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { isToday } from "date-fns";
 import {
   RefreshCw,
   Building2,
@@ -510,20 +509,44 @@ const Monitor: React.FC = () => {
   };
 
   const getFilteredVotes = (votes: Vote[]) => {
-    if (!votes || votes.length === 0) return [];
+    if (!analytics) return [];
 
-    if (!activeService) return [];
+    const currentMonitorDay = format(
+      getNow(new Date(), selectedCompanyId),
+      "yyyy-MM-dd"
+    );
+    const isVoteFromCurrentMonitorDay = (vote: Vote) =>
+      format(new Date(vote.momento_voto), "yyyy-MM-dd") === currentMonitorDay;
 
-    const serviceVotes =
-      analytics?.votesByService[activeService.id]?.votes || [];
+    const allServiceVotes = Object.values(analytics.votesByService).flatMap(
+      (service) => service.votes || []
+    );
 
-    // "Hoje" com base na hora ajustada (empresa + TV)
-    const today = getNow(new Date(), selectedCompanyId)
-      .toISOString()
-      .slice(0, 10); // Ex: "2025-05-09"
+    if (!activeService) {
+      return allServiceVotes.filter(isVoteFromCurrentMonitorDay);
+    }
 
-    return serviceVotes.filter(
-      (vote) => vote.momento_voto.slice(0, 10) === today
+    // Caminho principal: quando a chave em votesByService é o id do serviço
+    const votesFromSelectedServiceByMap =
+      analytics.votesByService[activeService.id]?.votes || [];
+    const votesByMap = votesFromSelectedServiceByMap.filter(
+      isVoteFromCurrentMonitorDay
+    );
+    if (votesByMap.length > 0) return votesByMap;
+
+    // Fallback: quando a chave do objeto diverge, filtra pelo id dentro dos votos
+    const votesByServiceId = allServiceVotes.filter(
+      (vote) =>
+        vote.id_tipo_servico === activeService.id &&
+        isVoteFromCurrentMonitorDay(vote)
+    );
+    if (votesByServiceId.length > 0) return votesByServiceId;
+
+    // Último fallback com os votos recentes recebidos
+    return votes.filter(
+      (vote) =>
+        vote.id_tipo_servico === activeService.id &&
+        isVoteFromCurrentMonitorDay(vote)
     );
   };
 
