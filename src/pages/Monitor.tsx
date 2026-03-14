@@ -400,6 +400,8 @@ const Monitor: React.FC = () => {
       const normalized = transformAnalytics(analyticsFromWs);
       setAnalytics(normalized);
       checkAlerts(normalized);
+      // Fallback extra: sincroniza com API mesmo quando o payload do socket vier parcial
+      void refetch();
       console.log("[WS] voteUpdate recebido");
     });
 
@@ -412,7 +414,7 @@ const Monitor: React.FC = () => {
       socket.off("voteUpdate");
       socket.disconnect();
     };
-  }, [selectedCompanyId]);
+  }, [selectedCompanyId, refetch]);
 
   // Update analytics state when initialAnalytics changes
   useEffect(() => {
@@ -511,43 +513,40 @@ const Monitor: React.FC = () => {
   const getFilteredVotes = (votes: Vote[]) => {
     if (!analytics) return [];
 
-    const currentMonitorDay = format(
-      getNow(new Date(), selectedCompanyId),
-      "yyyy-MM-dd"
-    );
-    const isVoteFromCurrentMonitorDay = (vote: Vote) =>
-      format(new Date(vote.momento_voto), "yyyy-MM-dd") === currentMonitorDay;
-
     const allServiceVotes = Object.values(analytics.votesByService).flatMap(
       (service) => service.votes || []
     );
 
     if (!activeService) {
-      return allServiceVotes.filter(isVoteFromCurrentMonitorDay);
+      return allServiceVotes.length > 0 ? allServiceVotes : votes;
     }
 
-    // Caminho principal: quando a chave em votesByService é o id do serviço
-    const votesFromSelectedServiceByMap =
-      analytics.votesByService[activeService.id]?.votes || [];
-    const votesByMap = votesFromSelectedServiceByMap.filter(
-      isVoteFromCurrentMonitorDay
+    // Alguns clientes enviam id_tipo_servico com id do serviço da empresa,
+    // outros com o id do tipo de serviço.
+    const validServiceIds = new Set(
+      [activeService.id, activeService.tipo_servico].filter(Boolean)
     );
-    if (votesByMap.length > 0) return votesByMap;
 
-    // Fallback: quando a chave do objeto diverge, filtra pelo id dentro dos votos
-    const votesByServiceId = allServiceVotes.filter(
-      (vote) =>
-        vote.id_tipo_servico === activeService.id &&
-        isVoteFromCurrentMonitorDay(vote)
+    const byMapServiceId = Array.from(validServiceIds).flatMap(
+      (serviceId) => analytics.votesByService[serviceId]?.votes || []
     );
-    if (votesByServiceId.length > 0) return votesByServiceId;
 
-    // Último fallback com os votos recentes recebidos
-    return votes.filter(
-      (vote) =>
-        vote.id_tipo_servico === activeService.id &&
-        isVoteFromCurrentMonitorDay(vote)
+    const byVoteServiceId = allServiceVotes.filter(
+      (vote) => !!vote.id_tipo_servico && validServiceIds.has(vote.id_tipo_servico)
     );
+
+    const fallbackFromRecentVotes = votes.filter(
+      (vote) => !!vote.id_tipo_servico && validServiceIds.has(vote.id_tipo_servico)
+    );
+
+    const merged = [...byMapServiceId, ...byVoteServiceId, ...fallbackFromRecentVotes];
+    if (merged.length === 0) {
+      return allServiceVotes.length > 0 ? allServiceVotes : votes;
+    }
+
+    const uniqueById = new Map<string, Vote>();
+    merged.forEach((vote) => uniqueById.set(vote.id_voto, vote));
+    return Array.from(uniqueById.values());
   };
 
   const getRatingValue = (avaliacao: string): number => {
