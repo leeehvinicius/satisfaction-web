@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { votes } from '@/services/api';
+import { votes, companies } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -71,28 +71,138 @@ export default function StatusOperacao() {
     queryFn: () => votes.getOperationStatus(startDate, endDate),
   });
 
-  const { data: companyRanking, isLoading: isLoadingRanking, error: rankingError, refetch: refetchRanking } = useQuery<CompanyRankingResponse>({
-    queryKey: ['company-ranking', startDate, endDate],
-    queryFn: () => votes.getCompanyRanking(startDate, endDate, undefined, 5),
-  });
-
-  const { data: worstCompanyRanking, isLoading: isLoadingWorstRanking, error: worstError, refetch: refetchWorst } = useQuery<CompanyRankingResponse>({
-    queryKey: ['worst-company-ranking', startDate, endDate],
-    queryFn: () => votes.getWorstCompanyRanking(startDate, endDate, undefined, 5),
-  });
-
   const { data: completeRanking, isLoading: isLoadingCompleteRanking, error: completeError, refetch: refetchComplete } = useQuery<CompleteRankingResponse>({
     queryKey: ['complete-company-ranking', startDate, endDate],
     queryFn: () => votes.getCompleteCompanyRanking(startDate, endDate),
   });
 
-  const isLoading = isLoadingStatus || isLoadingRanking || isLoadingWorstRanking || isLoadingCompleteRanking;
-  const hasError = statusError || rankingError || worstError || completeError;
+  const { data: companiesList, isLoading: isLoadingCompanies } = useQuery({
+    queryKey: ['companies'],
+    queryFn: companies.getAll,
+  });
+
+  const isLoading = isLoadingStatus || isLoadingCompleteRanking || isLoadingCompanies;
+  const hasError = statusError || completeError;
   const refetchAll = () => {
     refetchStatus();
-    refetchRanking();
-    refetchWorst();
     refetchComplete();
+  };
+
+  const { rankingAtingiramMeta, rankingAbaixoMeta, numDiasPeriodo } = useMemo(() => {
+    const numDias =
+      startDate && endDate
+        ? Math.max(1, Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1)
+        : 1;
+    const qtPorEmpresa = new Map<string, number>();
+    companiesList?.forEach((c) => qtPorEmpresa.set(c.id, Number(c.qt_funcionarios) || 0));
+
+    const atingiram: Array<{
+      position: number;
+      companyId: string;
+      companyName: string;
+      totalVotes: number;
+      satisfacao: { count: number; percentage: number };
+      melhoria: { count: number; percentage: number };
+      qtRefeicoesDiarias: number;
+      expectedNoPeriodo: number;
+      percentualMeta: number;
+    }> = [];
+    const abaixo: Array<typeof atingiram[0]> = [];
+
+    completeRanking?.ranking?.forEach((company) => {
+      const qtDiarias = qtPorEmpresa.get(company.companyId) ?? 0;
+      const expectedNoPeriodo = qtDiarias * numDias;
+      const minimo30 = 0.3 * expectedNoPeriodo;
+      const percentualMeta = expectedNoPeriodo > 0 ? (company.totalVotes / expectedNoPeriodo) * 100 : 0;
+      const item = {
+        ...company,
+        qtRefeicoesDiarias: qtDiarias,
+        expectedNoPeriodo,
+        percentualMeta,
+      };
+      if (company.totalVotes >= minimo30) {
+        atingiram.push(item);
+      } else {
+        abaixo.push(item);
+      }
+    });
+
+    atingiram.sort((a, b) => b.satisfacao.percentage - a.satisfacao.percentage);
+    abaixo.sort((a, b) => b.satisfacao.percentage - a.satisfacao.percentage);
+    atingiram.forEach((row, i) => {
+      row.position = i + 1;
+    });
+    abaixo.forEach((row, i) => {
+      row.position = i + 1;
+    });
+
+    return {
+      rankingAtingiramMeta: atingiram,
+      rankingAbaixoMeta: abaixo,
+      numDiasPeriodo: numDias,
+    };
+  }, [startDate, endDate, companiesList, completeRanking]);
+
+  const renderRankingTable = (
+    items: typeof rankingAtingiramMeta,
+    emptyMessage: string,
+    positionBg: string = 'bg-primary text-primary-foreground'
+  ) => {
+    if (items.length === 0) {
+      return <div className="text-center py-8 text-muted-foreground">{emptyMessage}</div>;
+    }
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="p-3 text-left font-semibold">#</th>
+              <th className="p-3 text-left font-semibold">Empresa</th>
+              <th className="p-3 text-center font-semibold">Meta/dia</th>
+              <th className="p-3 text-center font-semibold">Total Votos</th>
+              <th className="p-3 text-center font-semibold">% da meta</th>
+              <th className="p-3 text-center font-semibold">% Satisfação</th>
+              <th className="p-3 text-center font-semibold">% Melhoria</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((company) => (
+              <tr key={company.companyId} className="border-b border-border hover:bg-accent/50">
+                <td className="p-3">
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold ${positionBg}`}>
+                    {company.position}
+                  </div>
+                </td>
+                <td className="p-3 font-medium">{company.companyName}</td>
+                <td className="p-3 text-center text-muted-foreground">{company.qtRefeicoesDiarias}</td>
+                <td className="p-3 text-center">{company.totalVotes}</td>
+                <td className="p-3 text-center">
+                  <span className={company.percentualMeta >= 30 ? 'text-green-600 dark:text-green-400 font-medium' : 'text-muted-foreground'}>
+                    {company.percentualMeta.toFixed(1)}%
+                  </span>
+                </td>
+                <td className="p-3 text-center">
+                  <div className="inline-flex items-center gap-2">
+                    <div className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-3 py-1 rounded-full font-semibold text-sm">
+                      {company.satisfacao.percentage.toFixed(1)}%
+                    </div>
+                    <span className="text-xs text-muted-foreground">({company.satisfacao.count})</span>
+                  </div>
+                </td>
+                <td className="p-3 text-center">
+                  <div className="inline-flex items-center gap-2">
+                    <div className="bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 px-3 py-1 rounded-full font-semibold text-sm">
+                      {company.melhoria.percentage.toFixed(1)}%
+                    </div>
+                    <span className="text-xs text-muted-foreground">({company.melhoria.count})</span>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
   };
 
   return (
@@ -227,211 +337,36 @@ export default function StatusOperacao() {
           </Card>
         </div>
 
-        {/* Ranking de Empresas */}
-        <Card className="border-border bg-card">
+        {/* Ranking principal: empresas com pelo menos 30% da meta diária */}
+        <Card className="border-border border-green-200 bg-card dark:border-green-800">
           <CardHeader>
-            <CardTitle className="text-xl">🏆 Top 5 Empresas - Ranking de Satisfação</CardTitle>
+            <CardTitle className="text-xl">🏆 Empresas que atingiram pelo menos 30% da meta diária</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Empresas ordenadas por % de Satisfação (Ótimo + Bom)
+              Somente empresas que atingiram ou superaram 30% do valor diário de refeições (Qtd Refeições) no período. Ordenado por % de Satisfação.
             </p>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="p-3 text-left font-semibold">#</th>
-                    <th className="p-3 text-left font-semibold">Empresa</th>
-                    <th className="p-3 text-center font-semibold">Total Votos</th>
-                    <th className="p-3 text-center font-semibold">% Satisfação</th>
-                    <th className="p-3 text-center font-semibold">% Melhoria</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {companyRanking?.ranking.map((company) => (
-                    <tr key={company.companyId} className="border-b border-border hover:bg-accent/50">
-                      <td className="p-3">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold">
-                          {company.position}
-                        </div>
-                      </td>
-                      <td className="p-3 font-medium">{company.companyName}</td>
-                      <td className="p-3 text-center">{company.totalVotes}</td>
-                      <td className="p-3 text-center">
-                        <div className="inline-flex items-center gap-2">
-                          <div className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-3 py-1 rounded-full font-semibold">
-                            {company.satisfacao.percentage.toFixed(1)}%
-                          </div>
-                          <span className="text-xs text-muted-foreground">
-                            ({company.satisfacao.count})
-                          </span>
-                        </div>
-                      </td>
-                      <td className="p-3 text-center">
-                        <div className="inline-flex items-center gap-2">
-                          <div className="bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 px-3 py-1 rounded-full font-semibold">
-                            {company.melhoria.percentage.toFixed(1)}%
-                          </div>
-                          <span className="text-xs text-muted-foreground">
-                            ({company.melhoria.count})
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {(!companyRanking?.ranking || companyRanking.ranking.length === 0) && (
-              <div className="text-center py-8 text-muted-foreground">
-                Nenhum dado disponível para o período selecionado
-              </div>
+            {renderRankingTable(
+              rankingAtingiramMeta,
+              'Nenhuma empresa atingiu 30% da meta no período selecionado.',
+              'bg-primary text-primary-foreground'
             )}
           </CardContent>
         </Card>
 
-        {/* Ranking de Piores Empresas */}
-        <Card className="border-border border-red-200 dark:border-red-800">
+        {/* Lista: empresas abaixo de 30% da meta diária */}
+        <Card className="border-border border-amber-200 dark:border-amber-800">
           <CardHeader>
-            <CardTitle className="text-xl">⚠️ 5 Piores Empresas - Necessitam Atenção</CardTitle>
+            <CardTitle className="text-xl">⚠️ Empresas abaixo de 30% da meta diária</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Empresas com menor % de Satisfação (ordenadas da pior para melhor)
+              Empresas que ainda não alcançaram 30% do valor diário de refeições no período. Ordenado por % de Satisfação.
             </p>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="p-3 text-left font-semibold">#</th>
-                    <th className="p-3 text-left font-semibold">Empresa</th>
-                    <th className="p-3 text-center font-semibold">Total Votos</th>
-                    <th className="p-3 text-center font-semibold">% Satisfação</th>
-                    <th className="p-3 text-center font-semibold">% Melhoria</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {worstCompanyRanking?.ranking.map((company) => (
-                    <tr key={company.companyId} className="border-b border-border hover:bg-accent/50">
-                      <td className="p-3">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-red-500 text-white font-bold">
-                          {company.position}
-                        </div>
-                      </td>
-                      <td className="p-3 font-medium">{company.companyName}</td>
-                      <td className="p-3 text-center">{company.totalVotes}</td>
-                      <td className="p-3 text-center">
-                        <div className="inline-flex items-center gap-2">
-                          <div className="bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 px-3 py-1 rounded-full font-semibold">
-                            {company.satisfacao.percentage.toFixed(1)}%
-                          </div>
-                          <span className="text-xs text-muted-foreground">
-                            ({company.satisfacao.count})
-                          </span>
-                        </div>
-                      </td>
-                      <td className="p-3 text-center">
-                        <div className="inline-flex items-center gap-2">
-                          <div className="bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 px-3 py-1 rounded-full font-semibold">
-                            {company.melhoria.percentage.toFixed(1)}%
-                          </div>
-                          <span className="text-xs text-muted-foreground">
-                            ({company.melhoria.count})
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {(!worstCompanyRanking?.ranking || worstCompanyRanking.ranking.length === 0) && (
-              <div className="text-center py-8 text-muted-foreground">
-                Nenhum dado disponível para o período selecionado
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Ranking Completo de Todas as Empresas */}
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle className="text-xl">📊 Ranking Geral Completo</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Todas as empresas ordenadas por % de Satisfação ({completeRanking?.totalCompanies || 0} empresas)
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="text-left p-3 font-semibold">#</th>
-                    <th className="text-left p-3 font-semibold">Empresa</th>
-                    <th className="text-center p-3 font-semibold">Total Votos</th>
-                    <th className="text-center p-3 font-semibold">% Satisfação</th>
-                    <th className="text-center p-3 font-semibold">% Melhoria</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {completeRanking?.ranking.map((company) => {
-                    // Determine color based on position
-                    const isTop5 = company.position <= 5;
-                    const isBottom5 = company.position > (completeRanking.totalCompanies - 5);
-
-                    return (
-                      <tr
-                        key={company.companyId}
-                        className={`border-b border-border hover:bg-accent/50 ${isTop5 ? 'bg-green-50 dark:bg-green-950/20' :
-                          isBottom5 ? 'bg-red-50 dark:bg-red-950/20' : ''
-                          }`}
-                      >
-                        <td className="p-3">
-                          <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold ${isTop5 ? 'bg-green-500 text-white' :
-                            isBottom5 ? 'bg-red-500 text-white' :
-                              'bg-muted text-foreground'
-                            }`}>
-                            {company.position}
-                          </div>
-                        </td>
-                        <td className="p-3 font-medium">{company.companyName}</td>
-                        <td className="p-3 text-center">{company.totalVotes}</td>
-                        <td className="p-3 text-center">
-                          <div className="inline-flex items-center gap-2">
-                            <div className={`px-3 py-1 rounded-full font-semibold ${company.satisfacao.percentage >= 80 ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' :
-                              company.satisfacao.percentage >= 60 ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200' :
-                                'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
-                              }`}>
-                              {company.satisfacao.percentage.toFixed(1)}%
-                            </div>
-                            <span className="text-xs text-muted-foreground">
-                              ({company.satisfacao.count})
-                            </span>
-                          </div>
-                        </td>
-                        <td className="p-3 text-center">
-                          <div className="inline-flex items-center gap-2">
-                            <div className="bg-muted text-muted-foreground px-3 py-1 rounded-full font-semibold">
-                              {company.melhoria.percentage.toFixed(1)}%
-                            </div>
-                            <span className="text-xs text-muted-foreground">
-                              ({company.melhoria.count})
-                            </span>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {(!completeRanking?.ranking || completeRanking.ranking.length === 0) && (
-              <div className="text-center py-8 text-muted-foreground">
-                Nenhum dado disponível para o período selecionado
-              </div>
+            {renderRankingTable(
+              rankingAbaixoMeta,
+              'Nenhuma empresa abaixo da meta no período.',
+              'bg-amber-500 text-white dark:bg-amber-600'
             )}
           </CardContent>
         </Card>

@@ -191,9 +191,10 @@ export default function Relatorios() {
       percentuais: data.percentuais
     })) : [];
 
-  const satisfactionPercent = analytics
-    ? ((analytics.avaliacoesPorTipo.Ótimo + analytics.avaliacoesPorTipo.Bom) / analytics.totalVotes * 100)
-    : 0;
+  const satisfactionPercent =
+    analytics && analytics.totalVotes > 0
+      ? ((analytics.avaliacoesPorTipo.Ótimo + analytics.avaliacoesPorTipo.Bom) / analytics.totalVotes) * 100
+      : 0;
 
 
   const getFileName = () => {
@@ -268,6 +269,7 @@ export default function Relatorios() {
   };
 
   const getSatisfactionLevel = (percentual: number) => {
+    if (!Number.isFinite(percentual) || percentual < 0) return 'Precisa melhorar';
     if (percentual >= 80) return 'Excelente';
     if (percentual >= 60) return 'Bom';
     if (percentual >= 40) return 'Regular';
@@ -340,7 +342,7 @@ export default function Relatorios() {
     <div className="min-h-screen bg-background">
       <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <div className="flex flex-col gap-6 sm:gap-8">
-          {/* Header no estilo Dashboard / Companies */}
+          {/* Header e controles dentro do card */}
           <div
             className={cn(
               'rounded-2xl sm:rounded-3xl p-4 sm:p-6',
@@ -348,6 +350,7 @@ export default function Relatorios() {
               'border border-primary/10 dark:border-primary/20'
             )}
           >
+            {/* Linha 1: Título + Empresa */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 flex-shrink-0 items-center gap-3 md:gap-4">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -364,14 +367,14 @@ export default function Relatorios() {
                   </p>
                 </div>
               </div>
-              <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
+              <div className="w-full sm:w-auto sm:min-w-[220px]">
                 <Popover open={open} onOpenChange={setOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
                       role="combobox"
                       aria-expanded={open}
-                      className="h-10 min-w-[200px] justify-between sm:min-w-[250px]"
+                      className="h-10 w-full justify-between sm:w-auto sm:min-w-[220px]"
                     >
                       <span className="truncate">
                         {selectedCompany
@@ -381,7 +384,7 @@ export default function Relatorios() {
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[250px] border-border bg-card p-0" align="start">
+                  <PopoverContent className="w-[min(100vw-2rem,250px)] border-border bg-card p-0" align="start">
                     <div className="rounded-lg border border-border">
                       <div className="flex items-center border-b border-border px-3">
                         <input
@@ -427,36 +430,42 @@ export default function Relatorios() {
                     </div>
                   </PopoverContent>
                 </Popover>
-                {selectedCompany && (
-                  <>
-                    <Tabs value={quickFilter} onValueChange={handleQuickFilterChange}>
-                      <TabsList className="h-10">
-                        <TabsTrigger value="1d" className="text-xs sm:text-sm">Hoje</TabsTrigger>
-                        <TabsTrigger value="7d" className="text-xs sm:text-sm">7 dias</TabsTrigger>
-                        <TabsTrigger value="30d" className="text-xs sm:text-sm">30 dias</TabsTrigger>
-                        <TabsTrigger value="custom" className="text-xs sm:text-sm">Personalizado</TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                    <DateRangePicker date={dateRange} onDateChange={handleDateChange} />
-                    <div className="flex gap-2">
-                      <ExportPDF
-                        contentRef={contentRef}
-                        fileName={getFileName()}
-                        title={`Relatório de Satisfação - ${companiesList?.find(c => c.id === selectedCompany)?.nome || 'Geral'}`}
-                        subtitle={`Período: ${getPeriodText()}`}
-                      />
-                      {analytics && (
-                        <ExportDetailedReport
-                          {...getDetailedReportData()}
-                          fileName={`relatorio-detalhado-${format(new Date(), 'dd-MM-yyyy')}.pdf`}
-                          companyName={companiesList?.find(c => c.id === selectedCompany)?.nome || 'Empresa'}
-                        />
-                      )}
-                    </div>
-                  </>
-                )}
               </div>
             </div>
+
+            {/* Linha 2: Período + Export (só quando tem empresa) */}
+            {selectedCompany && (
+              <div className="mt-4 flex flex-col gap-4 border-t border-primary/10 pt-4 dark:border-primary/20 sm:mt-5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 sm:pt-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
+                  <Tabs value={quickFilter} onValueChange={handleQuickFilterChange}>
+                    <TabsList className="inline-flex h-10 w-full justify-start overflow-x-auto sm:w-auto">
+                      <TabsTrigger value="1d" className="shrink-0 text-xs sm:text-sm">Hoje</TabsTrigger>
+                      <TabsTrigger value="7d" className="shrink-0 text-xs sm:text-sm">7 dias</TabsTrigger>
+                      <TabsTrigger value="30d" className="shrink-0 text-xs sm:text-sm">30 dias</TabsTrigger>
+                      <TabsTrigger value="custom" className="shrink-0 text-xs sm:text-sm">Personalizado</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                  <div className="w-full sm:w-auto">
+                    <DateRangePicker date={dateRange} onDateChange={handleDateChange} />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 sm:ml-auto sm:flex-row sm:gap-2 [&>*]:w-full sm:[&>*]:w-auto">
+                  <ExportPDF
+                    contentRef={contentRef}
+                    fileName={getFileName()}
+                    title={`Relatório de Satisfação - ${companiesList?.find(c => c.id === selectedCompany)?.nome || 'Geral'}`}
+                    subtitle={`Período: ${getPeriodText()}`}
+                  />
+                  {analytics && (
+                    <ExportDetailedReport
+                      {...getDetailedReportData()}
+                      fileName={`relatorio-detalhado-${format(new Date(), 'dd-MM-yyyy')}.pdf`}
+                      companyName={companiesList?.find(c => c.id === selectedCompany)?.nome || 'Empresa'}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {!selectedCompany ? (
@@ -518,7 +527,9 @@ export default function Relatorios() {
                           <div className="flex flex-col items-end">
                             <span className="text-sm text-gray-500">Média diária</span>
                             <span className="text-2xl font-bold text-blue-600">
-                              {(analytics.totalVotes / 7).toFixed(1)}
+                              {diasSelecionados > 0
+                                ? (analytics.totalVotes / diasSelecionados).toFixed(1)
+                                : '0.0'}
                             </span>
                           </div>
                         </div>
@@ -546,7 +557,7 @@ export default function Relatorios() {
                           <div className="flex flex-col">
                             <span className="text-sm text-gray-500">Satisfação geral</span>
                             <span className="text-4xl font-bold text-green-600">
-                              {satisfactionPercent.toFixed(1)}%
+                              {Number.isFinite(satisfactionPercent) ? satisfactionPercent.toFixed(1) : '0.0'}%
                             </span>
                           </div>
                           <div className="flex flex-col items-end">
@@ -820,9 +831,19 @@ export default function Relatorios() {
                     <div className="pdf-break" />
                   </>
 
-                  {/* Análise por Serviço */}
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* Análise por Serviço - card próprio, bem separado */}
+                  <Card className="mt-8 border-border bg-card shadow-sm">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-xl">
+                        <span>🍽️</span>
+                        Análise por Serviço
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        Métricas por refeição (Desjejum, Almoço, Ceia, etc.)
+                      </p>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                       {(() => {
                         const empresaSelecionada = companiesList?.find(c => c.id === selectedCompany);
                         const deveOcultarRuim = empresaSelecionada?.qtdbutao === 3;
@@ -841,41 +862,51 @@ export default function Relatorios() {
                                 percent: data.percentuais[label as keyof typeof data.percentuais] ?? 0,
                               }));
 
+                            const qtdRefeicoes = (data.serviceInfo?.qtd_ref || 0) * diasSelecionados;
+                            const diferenca = qtdRefeicoes - data.total;
+                            const temMeta = qtdRefeicoes > 0;
+                            const diferencaNegativaPct = temMeta
+                              ? (Math.abs(diferenca) / qtdRefeicoes) * 100
+                              : null;
+                            const diferencaPositivaPct = temMeta
+                              ? (data.total / qtdRefeicoes) * 100
+                              : null;
+
                             return (
-                              <div key={data.serviceInfo?.nome} className="border rounded-lg p-4 hover:shadow-lg transition-shadow">
-                                <div className="flex items-center justify-between mb-4">
-                                  <div>
-                                    <h3 className="text-lg font-semibold flex items-center gap-2">
-                                      <span className="text-2xl">{getServiceEmoji(data.serviceInfo?.nome || '')}</span>
-                                      {data.serviceInfo?.nome}
+                              <div key={data.serviceInfo?.nome} className="min-w-0 overflow-hidden rounded-xl border-2 border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                  <div className="min-w-0">
+                                    <h3 className="flex flex-wrap items-center gap-2 text-base font-semibold sm:text-lg">
+                                      <span className="text-xl sm:text-2xl">{getServiceEmoji(data.serviceInfo?.nome || '')}</span>
+                                      <span>{data.serviceInfo?.nome}</span>
                                     </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                      {formatTime(data.serviceInfo?.hora_inicio)} - {formatTime(data.serviceInfo?.hora_final)}
+                                    <p className="mt-0.5 text-sm text-muted-foreground">
+                                      {formatTime(data.serviceInfo?.hora_inicio)} – {formatTime(data.serviceInfo?.hora_final)}
                                     </p>
                                   </div>
-                                  <div className={`px-3 py-1 rounded-full text-sm font-medium ${satisfactionPercent >= 80
-                                    ? 'bg-green-100 text-green-800'
+                                  <div className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium ${satisfactionPercent >= 80
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200'
                                     : satisfactionPercent >= 60
-                                      ? 'bg-blue-100 text-blue-800'
+                                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200'
                                       : satisfactionPercent >= 40
-                                        ? 'bg-yellow-100 text-yellow-800'
-                                        : 'bg-red-100 text-red-800'
+                                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200'
+                                        : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200'
                                     }`}>
                                     {satisfactionPercent.toFixed(1)}%
                                   </div>
                                 </div>
 
-                                <div className="space-y-2">
+                                <div className="mt-4 space-y-2">
                                   {avaliacaoCompletada.map(({ label, count, percent }) => (
                                     <div
                                       key={label}
-                                      className={`flex items-center justify-between p-2 rounded-lg ${getRatingColor(label)}`}
+                                      className={`flex flex-wrap items-center justify-between gap-2 rounded-lg p-2 ${getRatingColor(label)}`}
                                     >
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-xl">{getRatingEmoji(label)}</span>
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <span className="text-lg sm:text-xl">{getRatingEmoji(label)}</span>
                                         <span className="font-medium">{label}</span>
                                       </div>
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-2 shrink-0">
                                         <span className="font-bold">{count}</span>
                                         <span className="text-sm text-muted-foreground">
                                           ({percent.toFixed(1)}%)
@@ -885,52 +916,39 @@ export default function Relatorios() {
                                   ))}
                                 </div>
 
-                                {/* Blocos adicionais */}
-                                <div className="grid grid-cols-4 gap-2 mt-4">
-                                  <div className="bg-green-100 text-green-800 text-center p-3 rounded-lg shadow">
-                                    <p className="text-sm font-semibold">Qtd. de Votos</p>
-                                    <p className="text-xl font-bold">{data.total}</p>
-                                  </div>
-                                  <div className="bg-yellow-100 text-yellow-800 text-center p-3 rounded-lg shadow">
-                                    <p className="text-sm font-semibold">Qtd. Refeições</p>
-                                    <p className="text-xl font-bold">{(data.serviceInfo?.qtd_ref || 0) * diasSelecionados}</p>
-                                  </div>
-                                  <div className="bg-red-100 text-red-800 text-center p-3 rounded-lg shadow">
-                                    <p className="text-sm font-semibold">Diferença</p>
-                                    <p className="text-xl font-bold">
-                                      {((data.serviceInfo?.qtd_ref || 0) * diasSelecionados) - data.total}
-                                    </p>
-                                  </div>
-                                  <div className="bg-orange-100 text-orange-800 text-center p-3 rounded-lg shadow">
-                                    <p className="text-sm font-semibold">Diferença %</p>
-                                    <p className="text-xl font-bold">
-                                      {(() => {
-                                        const qtdRefeicoes = (data.serviceInfo?.qtd_ref || 0) * diasSelecionados;
-                                        const diferenca = qtdRefeicoes - data.total;
-
-                                        // Se não há refeições esperadas, calcula em relação aos votos
-                                        if (qtdRefeicoes === 0 && data.total > 0) {
-                                          return '100.0%';
-                                        }
-
-                                        // Se não há votos nem refeições
-                                        if (qtdRefeicoes === 0 && data.total === 0) {
-                                          return '0.0%';
-                                        }
-
-                                        // Cálculo normal: diferença / refeições esperadas
-                                        const percentual = (Math.abs(diferenca) / qtdRefeicoes) * 100;
-                                        return `${percentual.toFixed(1)}%`;
-                                      })()}
-                                    </p>
-                                  </div>
+                                {/* Métricas: lista legível */}
+                                <div className="mt-4 rounded-lg border border-border bg-muted/30 p-3 sm:p-4">
+                                  <p className="mb-3 text-sm font-semibold text-foreground">Métricas do período</p>
+                                  <dl className="space-y-2 text-sm">
+                                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
+                                      <dt className="text-muted-foreground">Qtd. de Votos</dt>
+                                      <dd className="font-bold tabular-nums">{data.total}</dd>
+                                    </div>
+                                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
+                                      <dt className="text-muted-foreground">Qtd. Refeições (meta)</dt>
+                                      <dd className="font-bold tabular-nums">{qtdRefeicoes}</dd>
+                                    </div>
+                                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
+                                      <dt className="text-muted-foreground">Diferença</dt>
+                                      <dd className="font-bold tabular-nums">{diferenca}</dd>
+                                    </div>
+                                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
+                                      <dt className="text-muted-foreground">Diferença positiva (%) — já atingido</dt>
+                                      <dd className="font-bold tabular-nums">{temMeta ? `${diferencaPositivaPct!.toFixed(1)}%` : '—'}</dd>
+                                    </div>
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <dt className="text-muted-foreground">Diferença negativa (%) — restante</dt>
+                                      <dd className="font-bold tabular-nums">{temMeta ? `${diferencaNegativaPct!.toFixed(1)}%` : '—'}</dd>
+                                    </div>
+                                  </dl>
                                 </div>
                               </div>
                             );
                           });
                       })()}
                     </div>
-                  </CardContent>
+                    </CardContent>
+                  </Card>
                 </div>
                 <div id="pdf-end-marker" />
 
