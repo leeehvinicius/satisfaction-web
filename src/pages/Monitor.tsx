@@ -142,16 +142,38 @@ interface Company {
 
 type TimeRange = "1h" | "24h" | "7d" | "30d";
 
-const transformAnalytics = (data: VoteAnalytics): Analytics => {
+function calculateAverageRating(avaliacoes: { [key: string]: number }): number {
+  const ratingValues: Record<string, number> = {
+    Ótimo: 5,
+    Bom: 4,
+    Regular: 3,
+  };
+
+  let totalWeight = 0;
+  let weightedSum = 0;
+
+  Object.entries(avaliacoes).forEach(([tipo, count]) => {
+    const value = ratingValues[tipo] ?? 0;
+    weightedSum += value * count;
+    totalWeight += count;
+  });
+
+  return totalWeight > 0 ? weightedSum / totalWeight : 0;
+}
+
+const transformAnalytics = (data: VoteAnalytics & { recentVotes?: Vote[] }): Analytics => {
+  const votesByService = data.votesByService ?? {};
   return {
     ...data,
-    averageRating: calculateAverageRating(data.avaliacoesPorTipo),
-    votesByService: Object.entries(data.votesByService).reduce(
+    recentVotes: Array.isArray((data as any).recentVotes) ? (data as any).recentVotes : [],
+    averageRating: calculateAverageRating(data.avaliacoesPorTipo ?? {}),
+    votesByService: Object.entries(votesByService).reduce(
       (acc, [key, value]) => ({
         ...acc,
         [key]: {
           ...value,
-          average: calculateAverageRating((value as any).avaliacoes),
+          votes: Array.isArray((value as any).votes) ? (value as any).votes : [],
+          average: calculateAverageRating((value as any).avaliacoes ?? {}),
         },
       }),
       {} as Analytics["votesByService"]
@@ -369,30 +391,11 @@ const Monitor: React.FC = () => {
     staleTime: 10000, // Considera stale após 10s
   });
 
-  const calculateAverageRating = (avaliacoes: { [key: string]: number }) => {
-    const ratingValues = {
-      Ótimo: 5,
-      Bom: 4,
-      Regular: 3,
-      // 'Ruim': 2,
-    };
-
-    let totalWeight = 0;
-    let weightedSum = 0;
-
-    Object.entries(avaliacoes).forEach(([tipo, count]) => {
-      const value = ratingValues[tipo as keyof typeof ratingValues] || 0;
-      weightedSum += value * count;
-      totalWeight += count;
-    });
-
-    return totalWeight > 0 ? weightedSum / totalWeight : 0;
-  };
-
   // Configuração do WebSocket (tempo real de votos)
   useEffect(() => {
     if (!selectedCompanyId) return;
 
+    setAnalytics(null);
     const socket: Socket = io("https://pesquisa.api.vvrefeicoes.com.br", {
       path: "/socket.io",
       transports: ["websocket"],
@@ -403,13 +406,11 @@ const Monitor: React.FC = () => {
       socket.emit("joinCompanyRoom", selectedCompanyId);
     });
 
-    socket.on("voteUpdate", (analyticsFromWs: VoteAnalytics) => {
+    socket.on("voteUpdate", (analyticsFromWs: VoteAnalytics & { recentVotes?: Vote[] }) => {
       const normalized = transformAnalytics(analyticsFromWs);
       setAnalytics(normalized);
       checkAlerts(normalized);
-      // Fallback extra: sincroniza com API mesmo quando o payload do socket vier parcial
-      void refetch();
-      console.log("[WS] voteUpdate recebido");
+      console.log("[WS] voteUpdate recebido", normalized.totalVotes, "votos, recentVotes:", normalized.recentVotes?.length ?? 0);
     });
 
     socket.on("disconnect", () => {
@@ -421,7 +422,7 @@ const Monitor: React.FC = () => {
       socket.off("voteUpdate");
       socket.disconnect();
     };
-  }, [selectedCompanyId, refetch]);
+  }, [selectedCompanyId]);
 
   // Update analytics state when initialAnalytics changes
   useEffect(() => {
