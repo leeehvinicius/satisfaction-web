@@ -158,7 +158,8 @@ export default function StatusOperacao() {
             <tr className="border-b border-border">
               <th className="p-3 text-left font-semibold">#</th>
               <th className="p-3 text-left font-semibold">Empresa</th>
-              <th className="p-3 text-center font-semibold">Meta/dia</th>
+              <th className="p-3 text-center font-semibold">Meta/Dia</th>
+              <th className="p-3 text-center font-semibold">Meta/Período</th>
               <th className="p-3 text-center font-semibold">Total Votos</th>
               <th className="p-3 text-center font-semibold">% da meta</th>
               <th className="p-3 text-center font-semibold">% Satisfação</th>
@@ -174,8 +175,9 @@ export default function StatusOperacao() {
                   </div>
                 </td>
                 <td className="p-3 font-medium">{company.companyName}</td>
-                <td className="p-3 text-center text-muted-foreground">{company.qtRefeicoesDiarias}</td>
-                <td className="p-3 text-center">{company.totalVotes}</td>
+                <td className="p-3 text-center text-muted-foreground">{company.qtRefeicoesDiarias.toLocaleString('pt-BR')}</td>
+                <td className="p-3 text-center text-muted-foreground">{company.expectedNoPeriodo.toLocaleString('pt-BR')}</td>
+                <td className="p-3 text-center">{company.totalVotes.toLocaleString('pt-BR')}</td>
                 <td className="p-3 text-center">
                   <span className={company.percentualMeta >= 30 ? 'text-green-600 dark:text-green-400 font-medium' : 'text-muted-foreground'}>
                     {company.percentualMeta.toFixed(1)}%
