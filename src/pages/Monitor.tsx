@@ -715,21 +715,17 @@ const Monitor: React.FC = () => {
 
   if (isError) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <div className="w-full px-6 py-6">
-          <div className="flex flex-col items-center justify-center space-y-4">
+      <div className="min-h-screen bg-background">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4 text-center">
             <AlertTriangle className="h-12 w-12 text-destructive" />
-            <h2 className="text-2xl font-semibold">Erro ao carregar dados</h2>
-            <p className="text-muted-foreground">
+            <h2 className="text-xl font-semibold sm:text-2xl">Erro ao carregar dados</h2>
+            <p className="text-sm text-muted-foreground sm:text-base max-w-md">
               {error instanceof Error
                 ? error.message
                 : "Ocorreu um erro ao carregar os dados. Por favor, tente novamente."}
             </p>
-            <Button
-              onClick={() => refetch()}
-              variant="outline"
-              className="gap-2"
-            >
+            <Button onClick={() => refetch()} variant="outline" className="gap-2">
               <RefreshCw className="h-4 w-4" />
               Tentar novamente
             </Button>
@@ -741,27 +737,36 @@ const Monitor: React.FC = () => {
 
   if (!selectedCompanyId) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <div className="w-full px-6 py-6">
-          <div className="flex flex-col items-center justify-center space-y-4">
-            <Building2 className="h-12 w-12 text-muted-foreground" />
-            <h2 className="text-2xl font-semibold">Selecione uma empresa</h2>
-            <p className="text-muted-foreground">
+      <div
+        className={cn(
+          "fixed z-40 flex items-start justify-center bg-background p-4 sm:p-6",
+          "top-14 bottom-0 left-0 right-0 md:left-[16rem]"
+        )}
+      >
+        <div className="flex max-w-[280px] flex-col items-center gap-5 text-center">
+          <div className="rounded-xl bg-primary/10 p-3">
+            <Building2 className="h-10 w-10 text-primary" />
+          </div>
+          <div className="space-y-1">
+            <h2 className="text-base font-semibold text-foreground md:text-lg">
+              Selecione uma empresa
+            </h2>
+            <p className="text-xs text-muted-foreground md:text-sm">
               Escolha uma empresa para monitorar em tempo real
             </p>
-            <Select onValueChange={handleCompanyChange}>
-              <SelectTrigger className="w-[300px]">
-                <SelectValue placeholder="Selecione uma empresa" />
-              </SelectTrigger>
-              <SelectContent>
-                {companiesList?.map((company) => (
-                  <SelectItem key={company.id} value={company.id}>
-                    {company.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
+          <Select onValueChange={handleCompanyChange}>
+            <SelectTrigger className="h-10 w-full min-w-[200px] text-sm">
+              <SelectValue placeholder="Selecione uma empresa" />
+            </SelectTrigger>
+            <SelectContent side="bottom" align="center" sideOffset={8} className="w-[var(--radix-select-trigger-width)]">
+              {companiesList?.map((company) => (
+                <SelectItem key={company.id} value={company.id}>
+                  {company.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
     );
@@ -769,11 +774,9 @@ const Monitor: React.FC = () => {
 
   if (!analytics) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <div className="w-full px-6 py-6">
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
+      <div className="min-h-screen bg-background">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex items-center justify-center min-h-[40vh]">
+          <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent" />
         </div>
       </div>
     );
@@ -788,109 +791,107 @@ const Monitor: React.FC = () => {
       0
     ) / (votesInRange || 1);
 
-  return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="w-full px-6 py-6">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8">
-          <div>
-            <div className="flex items-center space-x-4">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Activity className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold tracking-tight">Monitor</h1>
-                <p className="text-muted-foreground">
-                  {selectedCompanyId
-                    ? `Monitoramento de ${
-                        companiesList?.find((c) => c.id === selectedCompanyId)
-                          ?.nome
-                      } (${
-                        companiesList?.find((c) => c.id === selectedCompanyId)
-                          ?.qtdbutao ?? 0
-                      } botões)`
-                    : "Monitoramento Geral"}
-                </p>
-              </div>
-            </div>
-          </div>
+  const selectedCompanyName = companiesList?.find((c) => c.id === selectedCompanyId)?.nome ?? "";
+  const qtdbutao = companiesList?.find((c) => c.id === selectedCompanyId)?.qtdbutao ?? 0;
+  const service = getActiveService();
 
-          {/* SERVIÇO ATUAL - AQUI */}
-          <div className="flex flex-col items-center justify-center flex-1 mx-6 my-4 md:my-0 text-center">
-            {(() => {
-              const service = getActiveService();
-              if (service) {
-                return (
-                  <div className="flex flex-col items-center">
-                    <span className="text-5xl font-bold text-red-500">
-                      {service.nome}
-                    </span>
-                    {/* Hora do aparelho (24h) */}
-                    <span className="mt-1 text-sm text-muted-foreground">
-                      {deviceTime}
-                    </span>
-                  </div>
-                );
-              }
-              return (
-                <div className="flex flex-col items-center">
-                  <span className="text-5xl font-bold text-red-500">
-                    Intervalo
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="flex flex-col gap-6 sm:gap-8">
+          {/* Header: desktop = uma linha (esquerda | centro | direita), mobile = coluna */}
+          <div
+            className={cn(
+              "rounded-2xl sm:rounded-3xl p-4 sm:p-6",
+              "bg-gradient-to-br from-primary/10 via-primary/5 to-transparent dark:from-primary/20 dark:via-primary/10 dark:to-transparent",
+              "border border-primary/10 dark:border-primary/20"
+            )}
+          >
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              {/* Esquerda: título e empresa */}
+              <div className="flex min-w-0 flex-shrink-0 items-center gap-3 md:gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Activity className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <h1 className="text-xl font-bold tracking-tight sm:text-2xl md:text-3xl">
+                    Monitor
+                  </h1>
+                  <p className="truncate text-sm text-muted-foreground">
+                    {selectedCompanyName
+                      ? `${selectedCompanyName} · ${qtdbutao} botões`
+                      : "Monitoramento geral"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Centro: serviço atual / Intervalo + relógio */}
+              <div className="flex flex-1 items-center justify-center text-center">
+                <div className="flex flex-col">
+                  <span
+                    className={cn(
+                      "font-bold text-primary",
+                      "text-2xl sm:text-3xl md:text-4xl lg:text-5xl"
+                    )}
+                  >
+                    {service ? service.nome : "Intervalo"}
                   </span>
-                  {/* Hora do aparelho (24h) */}
-                  <span className="mt-1 text-sm text-muted-foreground">
+                  <span className="mt-1 text-sm text-muted-foreground tabular-nums">
                     {deviceTime}
                   </span>
                 </div>
-              );
-            })()}
-          </div>
-          <div className="flex items-center space-x-4">
-            <Select
-              value={selectedCompanyId || "all"}
-              onValueChange={handleCompanyChange}
-            >
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Selecione uma empresa" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as Empresas</SelectItem>
-                {companiesList?.map((company) => (
-                  <SelectItem key={company.id} value={company.id}>
-                    {company.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => refetch()}
-              className="hover:bg-primary/10"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+              </div>
 
-        {/* Estatísticas de Votos */}
-        <Card className="mt-8 bg-gradient-to-br from-primary/5 to-primary/10">
-          <CardHeader>
-            <div className="flex items-center space-x-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              <span className="font-medium">Estatísticas de Votos</span>
+              {/* Direita: select empresa + botão atualizar */}
+              <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-2 sm:justify-start md:justify-end">
+                <Select
+                  value={selectedCompanyId || "all"}
+                  onValueChange={handleCompanyChange}
+                >
+                  <SelectTrigger className="h-10 w-full min-w-[180px] md:w-[220px]">
+                    <SelectValue placeholder="Selecione uma empresa" />
+                  </SelectTrigger>
+                  <SelectContent side="bottom" align="end">
+                    <SelectItem value="all">Todas as Empresas</SelectItem>
+                    {companiesList?.map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => refetch()}
+                  className="h-10 w-10 shrink-0 hover:bg-primary/10"
+                  aria-label="Atualizar dados"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <VoteStats
-              votes={filteredVotes}
-              counts={displayCounts}
-              qtdbutao={
-                companiesList?.find((c) => c.id === selectedCompanyId)
-                  ?.qtdbutao ?? 0
-              }
-            />
-          </CardContent>
-        </Card>
+          </div>
+
+          {/* Estatísticas de Votos */}
+          <Card className="overflow-hidden border border-border bg-card shadow-sm">
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                <span className="font-semibold text-card-foreground">
+                  Estatísticas de Votos
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <VoteStats
+                votes={filteredVotes}
+                counts={displayCounts}
+                qtdbutao={qtdbutao}
+              />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
