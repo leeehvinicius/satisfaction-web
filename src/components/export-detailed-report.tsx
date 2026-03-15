@@ -160,7 +160,7 @@ export function ExportDetailedReport({
         className="flex items-center gap-2"
         disabled={loading}
       >
-        <Calendar className="h-4 w-4" />
+        <Calendar className="icon-foreground h-4 w-4 text-foreground" />
         {loading ? 'Gerando Relatório...' : 'Relatório Detalhado por Dia'}
       </Button>
 

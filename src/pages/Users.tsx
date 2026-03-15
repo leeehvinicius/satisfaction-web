@@ -7,20 +7,22 @@ import { Button } from '@/components/ui/button';
 import InputMask from 'react-input-mask';
 
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import {
   Form,
   FormControl,
@@ -31,15 +33,15 @@ import {
   FormDescription,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { User, CreateUserRequest, UpdateUserRequest, UserFormData, UserFormDataUpdate } from '@/types/user';
 import { users, companies } from '@/services/api';
+import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PermissionsTree } from '@/components/PermissionsTree';
-import { toast } from 'sonner';
 import { Permission } from '@/types/permission';
 
 interface AccessProfile {
@@ -72,7 +74,7 @@ export default function Users() {
   const [userPermissions, setUserPermissions] = useState<Permission[]>([]);
   const [loadingPermissions, setLoadingPermissions] = useState(false);
 
-  const { data: usersList, isLoading: isLoadingUsers } = useQuery({
+  const { data: usersList, isLoading: isLoadingUsers, error: usersError, refetch: refetchUsersQuery } = useQuery({
     queryKey: ['users'],
     queryFn: users.getAll,
   });
@@ -290,12 +292,6 @@ export default function Users() {
     }
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este usuário?')) {
-      deleteUserMutation.mutate(id);
-    }
-  };
-
   const handleEditUser = async (user: User) => {
     try {
       setLoadingPermissions(true);
@@ -357,141 +353,172 @@ export default function Users() {
     queryClient.invalidateQueries({ queryKey: ['users'] });
   };
 
-  if (isLoadingUsers || isLoadingCompanies) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="grid grid-cols-1 gap-6">
-            {[...Array(5)].map((_, index) => (
-              <div
-                key={index}
-                className="h-[60px] rounded-lg bg-secondary/30 animate-pulse"
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-2">Usuários</h1>
-            <p className="text-muted-foreground max-w-2xl">
-              Gerencie os usuários que têm acesso ao sistema.
-            </p>
-          </div>
-          <div className="flex items-center gap-4 mt-4 md:mt-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-              <span>Atualizar</span>
-            </Button>
-            <Button
-              onClick={() => setIsCreateDialogOpen(true)}
-              className="flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Novo Usuário</span>
-            </Button>
-          </div>
-        </div>
-
-        <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar usuários..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-
-        {usersList?.length === 0 ? (
-          <div className="text-center py-12 border border-dashed rounded-lg border-border bg-secondary/20 flex flex-col items-center justify-center">
-            <UsersIcon className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">Nenhum usuário cadastrado</h3>
-            <p className="text-muted-foreground mb-6 max-w-md">
-              Adicione usuários para que possam acessar o sistema.
-            </p>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Usuário
-            </Button>
-          </div>
-        ) : (
-          <div className="rounded-md border">
-            <div className="relative w-full overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[150px]">Username</TableHead>
-                    <TableHead className="w-[200px]">Nome</TableHead>
-                    <TableHead className="w-[200px]">Email</TableHead>
-                    <TableHead className="w-[150px]">Cargo</TableHead>
-                    <TableHead className="w-[150px]">Perfil</TableHead>
-                    <TableHead className="w-[200px]">Empresas</TableHead>
-                    <TableHead className="w-[150px]">Criado em</TableHead>
-                    <TableHead className="w-[100px] text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUsers?.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.username}</TableCell>
-                      <TableCell>{user.nome}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.cargo}</TableCell>
-                      <TableCell>{user.perfil_acesso}</TableCell>
-                      <TableCell>
-                        {user.empresas?.length > 0
-                          ? user.empresas.map((empresa) => empresa.nome).join(', ')
-                          : 'Nenhuma empresa'}
-                      </TableCell>
-                      <TableCell>
-                        {user.created_at ? (
-                          format(parseISO(user.created_at), 'dd/MM/yyyy HH:mm', {
-                            locale: ptBR,
-                          })
-                        ) : (
-                          'Data não disponível'
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEditUser(user)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(user.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <div className="flex flex-col gap-6 sm:gap-8">
+          {/* Header no estilo Dashboard / Companies */}
+          <div
+            className={cn(
+              'rounded-2xl sm:rounded-3xl p-4 sm:p-6',
+              'bg-gradient-to-br from-primary/10 via-primary/5 to-transparent dark:from-primary/20 dark:via-primary/10 dark:to-transparent',
+              'border border-primary/10 dark:border-primary/20'
+            )}
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 flex-shrink-0 items-center gap-3 md:gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <UsersIcon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <h1 className="text-xl font-bold tracking-tight sm:text-2xl md:text-3xl">
+                    Usuários
+                  </h1>
+                  <p className="text-sm text-muted-foreground">
+                    Gerencie os usuários que têm acesso ao sistema.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  <span className="hidden xs:inline">Atualizar</span>
+                </Button>
+                <Button onClick={() => setIsCreateDialogOpen(true)} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Novo Usuário
+                </Button>
+              </div>
             </div>
           </div>
-        )}
+
+          {/* Busca */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome, username, e-mail ou cargo..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="h-10 pl-9 pr-4"
+            />
+          </div>
+
+          {/* Conteúdo */}
+          {isLoadingUsers || isLoadingCompanies ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
+              {[...Array(8)].map((_, index) => (
+                <div
+                  key={index}
+                  className="h-40 rounded-xl border border-border bg-card animate-pulse"
+                />
+              ))}
+            </div>
+          ) : usersError ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card py-12 text-center">
+              <p className="font-medium text-destructive">Erro ao carregar usuários</p>
+              <Button variant="outline" onClick={() => refetchUsersQuery()} className="mt-4">
+                Tentar novamente
+              </Button>
+            </div>
+          ) : usersList?.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 py-12 text-center">
+              <UsersIcon className="mb-4 h-12 w-12 text-muted-foreground" />
+              <h3 className="text-lg font-medium">Nenhum usuário cadastrado</h3>
+              <p className="mt-1 max-w-md text-sm text-muted-foreground">
+                Adicione usuários para que possam acessar o sistema.
+              </p>
+              <Button onClick={() => setIsCreateDialogOpen(true)} className="mt-6 gap-2">
+                <Plus className="h-4 w-4" />
+                Novo Usuário
+              </Button>
+            </div>
+          ) : filteredUsers?.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 py-12 text-center">
+              <Search className="mb-4 h-12 w-12 text-muted-foreground" />
+              <h3 className="text-lg font-medium">Nenhum resultado</h3>
+              <p className="mt-1 max-w-md text-sm text-muted-foreground">
+                Nenhum usuário encontrado para &quot;{searchTerm}&quot;. Tente outro termo.
+              </p>
+              <Button variant="outline" onClick={() => setSearchTerm('')} className="mt-6">
+                Limpar busca
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
+              {filteredUsers?.map((user) => (
+                <div
+                  key={user.id}
+                  className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{user.nome}</p>
+                      <p className="truncate text-sm text-muted-foreground">{user.username}</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleEditUser(user)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="border-border bg-card">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir usuário</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tem certeza que deseja excluir o usuário &quot;{user.nome}&quot;? Esta ação não pode ser desfeita.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteUserMutation.mutate(user.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                  <div className="space-y-1 text-sm">
+                    <p className="truncate text-muted-foreground">{user.email}</p>
+                    {user.cargo && (
+                      <p className="text-muted-foreground">
+                        <span className="font-medium text-foreground">Cargo:</span> {user.cargo}
+                      </p>
+                    )}
+                    {user.perfil_acesso && (
+                      <p className="text-muted-foreground">
+                        <span className="font-medium text-foreground">Perfil:</span> {user.perfil_acesso}
+                      </p>
+                    )}
+                    <p className="truncate text-muted-foreground">
+                      <span className="font-medium text-foreground">Empresas:</span>{' '}
+                      {user.empresas?.length ? user.empresas.map((e) => e.nome).join(', ') : 'Nenhuma'}
+                    </p>
+                    {user.created_at && (
+                      <p className="text-xs text-muted-foreground">
+                        {format(parseISO(user.created_at), 'dd/MM/yyyy', { locale: ptBR })}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent className="sm:max-w-[700px]">
+          <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] max-w-[700px] overflow-y-auto border-border bg-card p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle>Novo Usuário</DialogTitle>
             </DialogHeader>
@@ -544,7 +571,7 @@ export default function Users() {
                         )}
                       />
                       <FormField
-                        control={updateForm.control}
+                        control={form.control}
                         name="telcel"
                         render={({ field }) => (
                           <FormItem>
@@ -718,7 +745,7 @@ export default function Users() {
         </Dialog>
 
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[700px]">
+          <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] max-w-[700px] overflow-y-auto border-border bg-card p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle>Editar Usuário</DialogTitle>
             </DialogHeader>
@@ -983,5 +1010,6 @@ export default function Users() {
         </Dialog>
       </div>
     </div>
+  </div>
   );
 } 

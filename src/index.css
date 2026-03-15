@@ -82,6 +82,16 @@
     scroll-behavior: smooth;
   }
 
+  /* Ícone nativo do input type="date" em dark mode (branco) */
+  .dark input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 0.8;
+  }
+  /* Ícones de calendário e setas do date picker em dark mode (branco) */
+  .dark .icon-foreground {
+    color: hsl(var(--foreground)) !important;
+  }
+
   /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 8px;

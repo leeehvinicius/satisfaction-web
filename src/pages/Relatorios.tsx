@@ -16,7 +16,7 @@ import { parseISO } from 'date-fns';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, FileText, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SafeChart } from '@/components/SafeChart';
 
@@ -108,7 +108,7 @@ export default function Relatorios() {
   //   enabled: !!selectedCompany,
   // });
 
-  const { data: analytics } = useQuery({
+  const { data: analytics, isLoading: isLoadingAnalytics, error: analyticsError, refetch: refetchAnalytics } = useQuery({
     queryKey: ['votes', 'analytics', selectedCompany, dateRange, quickFilter],
     queryFn: async () => {
       let startDate = new Date();
@@ -337,132 +337,155 @@ export default function Relatorios() {
   };
 
   return (
-
-    <div className="min-h-screen bg-background flex flex-col">
-      <main className="flex-1">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Relatórios</h1>
-              <p className="text-muted-foreground">
-                {selectedCompany
-                  ? `Relatórios de ${companiesList?.find(c => c.id === selectedCompany)?.nome}`
-                  : 'Relatórios Gerais'}
-              </p>
-            </div>
-            <div className="flex flex-col md:flex-row items-start md:items-center gap-4 mt-4 md:mt-0">
-              <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={open}
-                    className="w-[250px] justify-between bg-white hover:bg-gray-50 border-gray-200"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">🏢</span>
-                      <span className="font-medium">
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <div className="flex flex-col gap-6 sm:gap-8">
+          {/* Header no estilo Dashboard / Companies */}
+          <div
+            className={cn(
+              'rounded-2xl sm:rounded-3xl p-4 sm:p-6',
+              'bg-gradient-to-br from-primary/10 via-primary/5 to-transparent dark:from-primary/20 dark:via-primary/10 dark:to-transparent',
+              'border border-primary/10 dark:border-primary/20'
+            )}
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 flex-shrink-0 items-center gap-3 md:gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <FileText className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <h1 className="text-xl font-bold tracking-tight sm:text-2xl md:text-3xl">
+                    Relatórios
+                  </h1>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedCompany
+                      ? `Relatórios de ${companiesList?.find(c => c.id === selectedCompany)?.nome}`
+                      : 'Analise a satisfação por empresa e período.'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
+                <Popover open={open} onOpenChange={setOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={open}
+                      className="h-10 min-w-[200px] justify-between sm:min-w-[250px]"
+                    >
+                      <span className="truncate">
                         {selectedCompany
-                          ? companiesList?.find((company) => company.id === selectedCompany)?.nome
-                          : "Selecione uma empresa"}
+                          ? companiesList?.find((c) => c.id === selectedCompany)?.nome
+                          : 'Selecione uma empresa'}
                       </span>
-                    </div>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[250px] p-0" align="start">
-                  <div className="rounded-lg border shadow-md">
-                    <div className="flex items-center border-b px-3">
-                      <span className="text-lg mr-2">🔍</span>
-                      <input
-                        className="h-9 w-full border-none focus:ring-0 outline-none"
-                        placeholder="Buscar empresa..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
-                    </div>
-                    <div className="max-h-[300px] overflow-auto">
-                      {filteredCompanies.length === 0 ? (
-                        <div className="py-6 text-center text-sm text-gray-500">
-                          Nenhuma empresa encontrada.
-                        </div>
-                      ) : (
-                        filteredCompanies.map((company) => (
-                          <div
-                            key={company.id}
-                            className="flex items-center gap-2 px-4 py-2 cursor-pointer hover:bg-gray-100"
-                            onClick={() => {
-                              setSelectedCompany(company.id);
-                              setOpen(false);
-                              setSearchQuery("");
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "h-4 w-4 text-green-600",
-                                selectedCompany === company.id ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            <span className="flex-1">{company.nome}</span>
-                            {selectedCompany === company.id && (
-                              <span className="text-xs text-gray-500">Selecionado</span>
-                            )}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[250px] border-border bg-card p-0" align="start">
+                    <div className="rounded-lg border border-border">
+                      <div className="flex items-center border-b border-border px-3">
+                        <input
+                          className="h-9 w-full flex-1 border-none bg-transparent outline-none placeholder:text-muted-foreground"
+                          placeholder="Buscar empresa..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                      </div>
+                      <div className="max-h-[300px] overflow-auto">
+                        {filteredCompanies.length === 0 ? (
+                          <div className="py-6 text-center text-sm text-muted-foreground">
+                            Nenhuma empresa encontrada.
                           </div>
-                        ))
+                        ) : (
+                          filteredCompanies.map((company) => (
+                            <div
+                              key={company.id}
+                              className={cn(
+                                "flex cursor-pointer items-center gap-2 px-4 py-2 hover:bg-muted/50",
+                                selectedCompany === company.id && "bg-muted/50"
+                              )}
+                              onClick={() => {
+                                setSelectedCompany(company.id);
+                                setOpen(false);
+                                setSearchQuery("");
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "h-4 w-4 text-primary",
+                                  selectedCompany === company.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <span className="flex-1 truncate">{company.nome}</span>
+                              {selectedCompany === company.id && (
+                                <span className="text-xs text-muted-foreground">Selecionado</span>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                {selectedCompany && (
+                  <>
+                    <Tabs value={quickFilter} onValueChange={handleQuickFilterChange}>
+                      <TabsList className="h-10">
+                        <TabsTrigger value="1d" className="text-xs sm:text-sm">Hoje</TabsTrigger>
+                        <TabsTrigger value="7d" className="text-xs sm:text-sm">7 dias</TabsTrigger>
+                        <TabsTrigger value="30d" className="text-xs sm:text-sm">30 dias</TabsTrigger>
+                        <TabsTrigger value="custom" className="text-xs sm:text-sm">Personalizado</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                    <DateRangePicker date={dateRange} onDateChange={handleDateChange} />
+                    <div className="flex gap-2">
+                      <ExportPDF
+                        contentRef={contentRef}
+                        fileName={getFileName()}
+                        title={`Relatório de Satisfação - ${companiesList?.find(c => c.id === selectedCompany)?.nome || 'Geral'}`}
+                        subtitle={`Período: ${getPeriodText()}`}
+                      />
+                      {analytics && (
+                        <ExportDetailedReport
+                          {...getDetailedReportData()}
+                          fileName={`relatorio-detalhado-${format(new Date(), 'dd-MM-yyyy')}.pdf`}
+                          companyName={companiesList?.find(c => c.id === selectedCompany)?.nome || 'Empresa'}
+                        />
                       )}
                     </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-              <Tabs value={quickFilter} onValueChange={handleQuickFilterChange}>
-                <TabsList>
-                  <TabsTrigger value="1d">Hoje</TabsTrigger>
-                  <TabsTrigger value="7d">7 dias</TabsTrigger>
-                  <TabsTrigger value="30d">30 dias</TabsTrigger>
-                  <TabsTrigger value="custom">Personalizado</TabsTrigger>
-                </TabsList>
-              </Tabs>
-              <DateRangePicker
-                date={dateRange}
-                onDateChange={handleDateChange}
-              />
-              <div className="flex gap-2">
-                <ExportPDF
-                  contentRef={contentRef}
-                  fileName={getFileName()}
-                  title={`Relatório de Satisfação - ${companiesList?.find(c => c.id === selectedCompany)?.nome || 'Geral'}`}
-                  subtitle={`Período: ${getPeriodText()}`}
-                />
-                {analytics && (
-                  <ExportDetailedReport
-                    {...getDetailedReportData()}
-                    fileName={`relatorio-detalhado-${format(new Date(), 'dd-MM-yyyy')}.pdf`}
-                    companyName={companiesList?.find(c => c.id === selectedCompany)?.nome || 'Empresa'}
-                  />
+                  </>
                 )}
               </div>
             </div>
           </div>
 
           {!selectedCompany ? (
-            <div className="flex items-center justify-center h-[400px]">
-              <div className="text-center">
-                <h2 className="text-2xl font-bold mb-4">Selecione uma empresa</h2>
-                <p className="text-muted-foreground">Escolha uma empresa para visualizar os relatórios</p>
-              </div>
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 py-12 text-center">
+              <FileText className="mb-4 h-12 w-12 text-muted-foreground" />
+              <h2 className="text-lg font-medium">Selecione uma empresa</h2>
+              <p className="mt-1 max-w-md text-sm text-muted-foreground">
+                Escolha uma empresa no campo acima para visualizar os relatórios de satisfação.
+              </p>
             </div>
-          ) : !analytics ? (
-            <div className="flex items-center justify-center h-[400px]">
-              <div className="text-center">
-                <h2 className="text-2xl font-bold mb-4">Carregando dados...</h2>
-                <p className="text-muted-foreground">Aguarde enquanto buscamos as informações</p>
-              </div>
+          ) : isLoadingAnalytics ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card py-12">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <h2 className="mt-4 text-lg font-medium">Carregando dados...</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Aguarde enquanto buscamos as informações.</p>
             </div>
-          ) : (
+          ) : analyticsError ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card py-12 text-center">
+              <p className="font-medium text-destructive">Erro ao carregar relatório</p>
+              <Button variant="outline" onClick={() => refetchAnalytics()} className="mt-4 gap-2">
+                <RefreshCw className="h-4 w-4" />
+                Tentar novamente
+              </Button>
+            </div>
+          ) : analytics ? (
             <div
               id="content-to-export"
               ref={contentRef}
-              className="space-y-6 bg-white p-6 rounded-lg shadow-sm"
+              className="space-y-6 rounded-xl border border-border bg-card p-4 sm:p-6"
             >
               <div className="mb-6">
                 <h2 className="text-2xl font-bold mb-2">
@@ -472,9 +495,9 @@ export default function Relatorios() {
               </div>
               <div className="grid grid-cols-1 gap-6">
                 {/* Resumo Geral */}
-                <div ref={contentRef} className="bg-white">
+                <div ref={contentRef}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Card className="border-2">
+                    <Card className="border-border">
                       <CardHeader className="pb-2">
                         <div className="flex items-center justify-between">
                           <CardTitle className="flex items-center gap-2">
@@ -502,7 +525,7 @@ export default function Relatorios() {
                       </CardContent>
                     </Card>
 
-                    <Card className="border-2">
+                    <Card className="border-border">
                       <CardHeader className="pb-2">
                         <div className="flex items-center justify-between">
                           <CardTitle className="flex items-center gap-2">
@@ -538,7 +561,7 @@ export default function Relatorios() {
                   </div>
 
                   {/* Gráfico de Pesquisa Diária */}
-                  <Card className="border-2">
+                  <Card className="border-border">
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between">
                         <CardTitle className="flex items-center gap-2">
@@ -571,7 +594,7 @@ export default function Relatorios() {
 
 
 
-                  <Card className="border-2 w-full">
+                  <Card className="w-full border-border">
                     <CardHeader className="pb-2">
                       <h2 className="text-2xl font-bold text-center">
                         Resultado do Dia
@@ -630,7 +653,7 @@ export default function Relatorios() {
 
                   {/* Gráficos Principais */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <Card className="border-2">
+                    <Card className="border-border">
                       <CardHeader className="pb-2">
                         <div className="flex items-center justify-between">
                           <CardTitle className="flex items-center gap-2">
@@ -689,7 +712,7 @@ export default function Relatorios() {
                       </CardContent>
                     </Card>
 
-                    <Card className="border-2">
+                    <Card className="border-border">
                       <CardHeader className="pb-2">
                         <div className="flex items-center justify-between">
                           <CardTitle className="flex items-center gap-2">
@@ -909,12 +932,9 @@ export default function Relatorios() {
                     </div>
                   </CardContent>
                 </div>
-                {/* Marcador onde para */}
-                <div id="pdf-end-marker"></div>
+                <div id="pdf-end-marker" />
 
-
-
-                <Card className="border-2">
+                <Card className="border-border">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <span className="text-2xl">📅</span>
@@ -986,7 +1006,7 @@ export default function Relatorios() {
 
 
 
-                <Card className="border-2">
+                <Card className="border-border">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <span className="text-2xl">📅</span>
@@ -1039,10 +1059,9 @@ export default function Relatorios() {
                 </Card>
               </div>
             </div>
-          )}
+          ) : null}
         </div>
-      </main>
+      </div>
     </div>
-
   );
 }

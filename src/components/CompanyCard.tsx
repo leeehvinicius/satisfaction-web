@@ -111,10 +111,11 @@ const CompanyCard: React.FC<CompanyCardProps> = ({
     },
   });
 
-  const handleDelete = async () => {
-    if (window.confirm('Tem certeza que deseja excluir esta empresa?')) {
-      deleteMutation.mutate(id);
-    }
+  const [deleteCompanyOpen, setDeleteCompanyOpen] = useState(false);
+
+  const handleDelete = () => {
+    deleteMutation.mutate(id);
+    setDeleteCompanyOpen(false);
   };
 
   const handleEditService = (service: CompanyService) => {
@@ -167,9 +168,30 @@ const CompanyCard: React.FC<CompanyCardProps> = ({
             <Button variant="ghost" size="icon" onClick={onEdit} className="h-8 w-8">
               <Pencil className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleDelete} className="h-8 w-8">
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            <AlertDialog open={deleteCompanyOpen} onOpenChange={setDeleteCompanyOpen}>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="border-border bg-card">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir empresa</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Tem certeza que deseja excluir a empresa &quot;{nome}&quot;? Esta ação não pode ser desfeita.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDelete}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Excluir
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <Link to={`/monitor/${id}`}>
               <Button variant="ghost" size="icon" className="h-8 w-8">
                 <BarChart2 className="h-4 w-4" />
@@ -202,17 +224,17 @@ const CompanyCard: React.FC<CompanyCardProps> = ({
               ) : services && services.length > 0 ? (
                 <div className="space-y-2">
                   {services.map((service: CompanyService) => (
-                    <div key={service.id} className="flex items-center justify-between p-2 bg-secondary/20 rounded group">
-                      <div className="flex-1">
+                    <div key={service.id} className="flex flex-col gap-2 rounded bg-secondary/20 p-2 group sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0 flex-1">
                         <p className="font-medium">{service.nome}</p>
                         <p className="text-sm text-muted-foreground">qtd: {getServiceTypeName(service.qtd_ref)}</p>
                       </div>
-                      <div className="flex items-center gap-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Clock className="h-4 w-4" />
+                          <Clock className="h-4 w-4 shrink-0" />
                           <span>{service.hora_inicio} - {service.hora_final}</span>
                         </div>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 sm:opacity-100">
                           <Button variant="ghost" size="icon" onClick={() => handleEditService(service)} className="h-6 w-6">
                             <Pencil className="h-3 w-3" />
                           </Button>

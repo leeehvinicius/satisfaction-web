@@ -4,7 +4,8 @@ import { votes } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, Calendar } from 'lucide-react';
+import { Loader2, Calendar, BarChart3, RefreshCw } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface OperationStatusResponse {
   period: {
@@ -65,85 +66,121 @@ export default function StatusOperacao() {
     setEndDate(tempEndDate);
   };
 
-  const { data: operationStatus, isLoading: isLoadingStatus } = useQuery<OperationStatusResponse>({
+  const { data: operationStatus, isLoading: isLoadingStatus, error: statusError, refetch: refetchStatus } = useQuery<OperationStatusResponse>({
     queryKey: ['operation-status', startDate, endDate],
     queryFn: () => votes.getOperationStatus(startDate, endDate),
   });
 
-  const { data: companyRanking, isLoading: isLoadingRanking } = useQuery<CompanyRankingResponse>({
+  const { data: companyRanking, isLoading: isLoadingRanking, error: rankingError, refetch: refetchRanking } = useQuery<CompanyRankingResponse>({
     queryKey: ['company-ranking', startDate, endDate],
     queryFn: () => votes.getCompanyRanking(startDate, endDate, undefined, 5),
   });
 
-  const { data: worstCompanyRanking, isLoading: isLoadingWorstRanking } = useQuery<CompanyRankingResponse>({
+  const { data: worstCompanyRanking, isLoading: isLoadingWorstRanking, error: worstError, refetch: refetchWorst } = useQuery<CompanyRankingResponse>({
     queryKey: ['worst-company-ranking', startDate, endDate],
     queryFn: () => votes.getWorstCompanyRanking(startDate, endDate, undefined, 5),
   });
 
-  const { data: completeRanking, isLoading: isLoadingCompleteRanking } = useQuery<CompleteRankingResponse>({
+  const { data: completeRanking, isLoading: isLoadingCompleteRanking, error: completeError, refetch: refetchComplete } = useQuery<CompleteRankingResponse>({
     queryKey: ['complete-company-ranking', startDate, endDate],
     queryFn: () => votes.getCompleteCompanyRanking(startDate, endDate),
   });
 
-  if (isLoadingStatus || isLoadingRanking || isLoadingWorstRanking || isLoadingCompleteRanking) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="flex items-center justify-center h-[calc(100vh-64px)]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </div>
-    );
-  }
+  const isLoading = isLoadingStatus || isLoadingRanking || isLoadingWorstRanking || isLoadingCompleteRanking;
+  const hasError = statusError || rankingError || worstError || completeError;
+  const refetchAll = () => {
+    refetchStatus();
+    refetchRanking();
+    refetchWorst();
+    refetchComplete();
+  };
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-4 pb-10 space-y-6">
-        {/* Header with Date Filters */}
-        <div className="space-y-4">
-          <h1 className="text-3xl font-bold">Status da Operação</h1>
+      <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <div className="flex flex-col gap-6 sm:gap-8">
+          {/* Header no estilo Dashboard / Companies */}
+          <div
+            className={cn(
+              'rounded-2xl sm:rounded-3xl p-4 sm:p-6',
+              'bg-gradient-to-br from-primary/10 via-primary/5 to-transparent dark:from-primary/20 dark:via-primary/10 dark:to-transparent',
+              'border border-primary/10 dark:border-primary/20'
+            )}
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 flex-shrink-0 items-center gap-3 md:gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <BarChart3 className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <h1 className="text-xl font-bold tracking-tight sm:text-2xl md:text-3xl">
+                    Status da Operação
+                  </h1>
+                  <p className="text-sm text-muted-foreground">
+                    Métricas gerais e ranking de satisfação por período.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
 
-          {/* Date Range Filters */}
-          <Card>
+          {/* Filtro por período */}
+          <Card className="border-border bg-card">
             <CardContent className="pt-6">
-              <div className="flex flex-col md:flex-row gap-4 items-end">
-                <div className="flex-1">
-                  <label className="text-sm font-medium mb-2 block">
-                    <Calendar className="inline h-4 w-4 mr-1" />
+              <div className="flex flex-col gap-4 md:flex-row md:items-end">
+                <div className="flex-1 space-y-2">
+                  <label className="flex items-center gap-1 text-sm font-medium text-foreground">
+                    <Calendar className="icon-foreground h-4 w-4 text-foreground" />
                     Data Inicial
                   </label>
                   <Input
                     type="date"
                     value={tempStartDate}
                     onChange={(e) => setTempStartDate(e.target.value)}
-                    className="w-full"
+                    className="h-10 w-full"
                   />
                 </div>
-                <div className="flex-1">
-                  <label className="text-sm font-medium mb-2 block">
-                    <Calendar className="inline h-4 w-4 mr-1" />
+                <div className="flex-1 space-y-2">
+                  <label className="flex items-center gap-1 text-sm font-medium text-foreground">
+                    <Calendar className="icon-foreground h-4 w-4 text-foreground" />
                     Data Final
                   </label>
                   <Input
                     type="date"
                     value={tempEndDate}
                     onChange={(e) => setTempEndDate(e.target.value)}
-                    className="w-full"
+                    className="h-10 w-full"
                   />
                 </div>
-                <Button onClick={handleApplyFilter} className="w-full md:w-auto">
+                <Button onClick={handleApplyFilter} className="h-10 w-full md:w-auto">
                   Aplicar Filtro
                 </Button>
               </div>
-              <div className="text-sm text-muted-foreground mt-4">
+              <p className="mt-4 text-sm text-muted-foreground">
                 Período selecionado: {startDate} até {endDate}
-              </div>
+              </p>
             </CardContent>
           </Card>
-        </div>
+
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card py-16">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              <p className="mt-4 text-sm text-muted-foreground">Carregando métricas...</p>
+            </div>
+          ) : hasError ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card py-12 text-center">
+              <p className="font-medium text-destructive">Erro ao carregar dados</p>
+              <Button variant="outline" onClick={() => refetchAll()} className="mt-4 gap-2">
+                <RefreshCw className="h-4 w-4" />
+                Tentar novamente
+              </Button>
+            </div>
+          ) : (
+        <div className="space-y-6">
 
         {/* Métricas Gerais */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <Card className="border-border bg-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Total de Votos
@@ -155,7 +192,7 @@ export default function StatusOperacao() {
             </CardContent>
           </Card>
 
-          <Card className="border-green-200 bg-green-50 dark:bg-green-950">
+          <Card className="border-border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/50">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <span>😁</span>
@@ -172,7 +209,7 @@ export default function StatusOperacao() {
             </CardContent>
           </Card>
 
-          <Card className="border-red-200 bg-red-50 dark:bg-red-950">
+          <Card className="border-border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/50">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <span>😕</span>
@@ -191,7 +228,7 @@ export default function StatusOperacao() {
         </div>
 
         {/* Ranking de Empresas */}
-        <Card>
+        <Card className="border-border bg-card">
           <CardHeader>
             <CardTitle className="text-xl">🏆 Top 5 Empresas - Ranking de Satisfação</CardTitle>
             <p className="text-sm text-muted-foreground">
@@ -202,17 +239,17 @@ export default function StatusOperacao() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-3 font-semibold">#</th>
-                    <th className="text-left p-3 font-semibold">Empresa</th>
-                    <th className="text-center p-3 font-semibold">Total Votos</th>
-                    <th className="text-center p-3 font-semibold">% Satisfação</th>
-                    <th className="text-center p-3 font-semibold">% Melhoria</th>
+                  <tr className="border-b border-border">
+                    <th className="p-3 text-left font-semibold">#</th>
+                    <th className="p-3 text-left font-semibold">Empresa</th>
+                    <th className="p-3 text-center font-semibold">Total Votos</th>
+                    <th className="p-3 text-center font-semibold">% Satisfação</th>
+                    <th className="p-3 text-center font-semibold">% Melhoria</th>
                   </tr>
                 </thead>
                 <tbody>
                   {companyRanking?.ranking.map((company) => (
-                    <tr key={company.companyId} className="border-b hover:bg-accent/50">
+                    <tr key={company.companyId} className="border-b border-border hover:bg-accent/50">
                       <td className="p-3">
                         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold">
                           {company.position}
@@ -255,7 +292,7 @@ export default function StatusOperacao() {
         </Card>
 
         {/* Ranking de Piores Empresas */}
-        <Card className="border-red-200">
+        <Card className="border-border border-red-200 dark:border-red-800">
           <CardHeader>
             <CardTitle className="text-xl">⚠️ 5 Piores Empresas - Necessitam Atenção</CardTitle>
             <p className="text-sm text-muted-foreground">
@@ -266,17 +303,17 @@ export default function StatusOperacao() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-3 font-semibold">#</th>
-                    <th className="text-left p-3 font-semibold">Empresa</th>
-                    <th className="text-center p-3 font-semibold">Total Votos</th>
-                    <th className="text-center p-3 font-semibold">% Satisfação</th>
-                    <th className="text-center p-3 font-semibold">% Melhoria</th>
+                  <tr className="border-b border-border">
+                    <th className="p-3 text-left font-semibold">#</th>
+                    <th className="p-3 text-left font-semibold">Empresa</th>
+                    <th className="p-3 text-center font-semibold">Total Votos</th>
+                    <th className="p-3 text-center font-semibold">% Satisfação</th>
+                    <th className="p-3 text-center font-semibold">% Melhoria</th>
                   </tr>
                 </thead>
                 <tbody>
                   {worstCompanyRanking?.ranking.map((company) => (
-                    <tr key={company.companyId} className="border-b hover:bg-accent/50">
+                    <tr key={company.companyId} className="border-b border-border hover:bg-accent/50">
                       <td className="p-3">
                         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-red-500 text-white font-bold">
                           {company.position}
@@ -319,7 +356,7 @@ export default function StatusOperacao() {
         </Card>
 
         {/* Ranking Completo de Todas as Empresas */}
-        <Card>
+        <Card className="border-border bg-card">
           <CardHeader>
             <CardTitle className="text-xl">📊 Ranking Geral Completo</CardTitle>
             <p className="text-sm text-muted-foreground">
@@ -347,7 +384,7 @@ export default function StatusOperacao() {
                     return (
                       <tr
                         key={company.companyId}
-                        className={`border-b hover:bg-accent/50 ${isTop5 ? 'bg-green-50 dark:bg-green-950/20' :
+                        className={`border-b border-border hover:bg-accent/50 ${isTop5 ? 'bg-green-50 dark:bg-green-950/20' :
                           isBottom5 ? 'bg-red-50 dark:bg-red-950/20' : ''
                           }`}
                       >
@@ -398,7 +435,10 @@ export default function StatusOperacao() {
             )}
           </CardContent>
         </Card>
+        </div>
+          )}
+        </div>
       </div>
-    </div >
+    </div>
   );
 }

@@ -6,6 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -270,16 +277,18 @@ const AddCompanyDialog: React.FC<AddCompanyDialogProps> = ({
           </div>
           <div className="space-y-2">
             <Label htmlFor="qtdbutao">Quantidade de Botões</Label>
-            <select
-              id="qtdbutao"
-              value={formData.qtdbutao}
-              onChange={(e) => setFormData({ ...formData, qtdbutao: Number(e.target.value) })}
-              className="border border-gray-300 rounded px-3 py-2 w-full"
-              required
+            <Select
+              value={String(formData.qtdbutao)}
+              onValueChange={(v) => setFormData({ ...formData, qtdbutao: Number(v) })}
             >
-              <option value={3}>3 botões</option>
-              <option value={4}>4 botões</option>
-            </select>
+              <SelectTrigger id="qtdbutao" className="w-full">
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="3">3 botões</SelectItem>
+                <SelectItem value="4">4 botões</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <div className="flex items-center space-x-2">
@@ -309,8 +318,7 @@ const AddCompanyDialog: React.FC<AddCompanyDialogProps> = ({
               required
             />
           </div>
-          {/* // Dentro do seu JSX */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="telcom">Telefone Comercial</Label>
               <InputMask
@@ -358,7 +366,7 @@ const AddCompanyDialog: React.FC<AddCompanyDialogProps> = ({
               required
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="numero">Número</Label>
               <Input
@@ -378,7 +386,7 @@ const AddCompanyDialog: React.FC<AddCompanyDialogProps> = ({
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="cidade">Cidade</Label>
               <Input
@@ -405,15 +413,15 @@ const AddCompanyDialog: React.FC<AddCompanyDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+      <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto border-border bg-card p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle className="text-xl sm:text-2xl">
+          <DialogTitle className="text-lg font-semibold sm:text-xl">
             {company ? 'Editar Empresa' : 'Adicionar Nova Empresa'}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <Tabs value={steps[currentStep].id} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 h-auto sm:h-10">
+            <TabsList className="grid h-auto w-full grid-cols-3 py-1 sm:h-10">
               {steps.map((step, index) => (
                 <TabsTrigger
                   key={step.id}

@@ -204,7 +204,7 @@ const Reports: React.FC = () => {
                   !date && "text-muted-foreground"
                 )}
               >
-                <CalendarIcon className="mr-2 h-4 w-4" />
+                <CalendarIcon className="icon-foreground mr-2 h-4 w-4 text-foreground" />
                 {date ? format(date, "PPP", { locale: ptBR }) : <span>Selecione uma data</span>}
               </Button>
             </PopoverTrigger>
