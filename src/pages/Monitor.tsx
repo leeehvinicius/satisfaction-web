@@ -5,7 +5,6 @@ import { io, Socket } from "socket.io-client";
 import { useAuth } from "@/context/AuthContext";
 import { votes, companies } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
-import Navbar from "@/components/Navbar";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -717,8 +716,7 @@ const Monitor: React.FC = () => {
   if (isError) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <Navbar />
-        <div className="w-full px-6 py-24">
+        <div className="w-full px-6 py-6">
           <div className="flex flex-col items-center justify-center space-y-4">
             <AlertTriangle className="h-12 w-12 text-destructive" />
             <h2 className="text-2xl font-semibold">Erro ao carregar dados</h2>
@@ -744,8 +742,7 @@ const Monitor: React.FC = () => {
   if (!selectedCompanyId) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <Navbar />
-        <div className="w-full px-6 py-24">
+        <div className="w-full px-6 py-6">
           <div className="flex flex-col items-center justify-center space-y-4">
             <Building2 className="h-12 w-12 text-muted-foreground" />
             <h2 className="text-2xl font-semibold">Selecione uma empresa</h2>
@@ -773,8 +770,7 @@ const Monitor: React.FC = () => {
   if (!analytics) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <Navbar />
-        <div className="w-full px-6 py-24">
+        <div className="w-full px-6 py-6">
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
@@ -794,8 +790,7 @@ const Monitor: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Navbar />
-      <div className="w-full px-6 py-24">
+      <div className="w-full px-6 py-6">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8">
           <div>
             <div className="flex items-center space-x-4">

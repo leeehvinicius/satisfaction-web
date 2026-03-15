@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { votes } from '@/services/api';
-import Navbar from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -89,7 +88,6 @@ export default function StatusOperacao() {
   if (isLoadingStatus || isLoadingRanking || isLoadingWorstRanking || isLoadingCompleteRanking) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar />
         <div className="flex items-center justify-center h-[calc(100vh-64px)]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -99,8 +97,7 @@ export default function StatusOperacao() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
-      <div className="container mx-auto px-4 pt-20 pb-10 space-y-6">
+      <div className="container mx-auto px-4 py-4 pb-10 space-y-6">
         {/* Header with Date Filters */}
         <div className="space-y-4">
           <h1 className="text-3xl font-bold">Status da Operação</h1>

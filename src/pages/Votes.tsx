@@ -6,7 +6,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Company } from '@/types/company';
 import { Service } from '@/types/service';
 import { Vote } from '@/types/vote';
-import Navbar from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -209,8 +208,7 @@ const Votes: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Navbar />
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-24">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8">
           <div>
             <div className="flex items-center space-x-4">

@@ -22,8 +22,6 @@ import {
   TableHeader, TableRow
 } from "@/components/ui/table";
 import { ServiceType, CreateServiceTypeRequest, UpdateServiceTypeRequest } from '@/types/serviceType';
-import Navbar from '@/components/Navbar';
-
 const ServiceTypes: React.FC = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -104,8 +102,7 @@ const ServiceTypes: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Navbar />
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-24">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-2">Tipos de Serviço</h1>

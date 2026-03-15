@@ -6,8 +6,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
-import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import Sidebar from "./components/Sidebar";
+import Navbar from "./components/Navbar";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { useTranslationDetector } from "./hooks/useTranslationDetector";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -58,10 +59,10 @@ const AppContent = () => {
       {isAuthenticated ? (
         <>
           <Sidebar />
-          <div className="flex-1">
-            <SidebarInset>
-              <div className="container mx-auto px-4 py-4">
-                <SidebarTrigger className="fixed top-4 left-4 z-50 md:hidden" />
+          <div className="flex-1 min-w-0">
+            <Navbar />
+            <SidebarInset className="pt-14">
+              <div className="container mx-auto min-w-0 px-4 py-4 sm:px-6 lg:px-8">
                 <Suspense fallback={fallback}>
                 <Routes>
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />

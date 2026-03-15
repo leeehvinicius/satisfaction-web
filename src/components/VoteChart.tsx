@@ -1,17 +1,17 @@
-
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  Tooltip, 
-  ResponsiveContainer, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
   Cell,
   CartesianGrid,
-  LabelList 
+  LabelList,
 } from 'recharts';
+import { useTheme } from '@/context/ThemeContext';
 
 interface VoteChartProps {
   data: Array<{
@@ -24,13 +24,15 @@ interface VoteChartProps {
   height?: number;
 }
 
-const VoteChart: React.FC<VoteChartProps> = ({ 
-  data, 
-  title, 
-  description, 
-  height = 300 
+const VoteChart: React.FC<VoteChartProps> = ({
+  data,
+  title,
+  description,
+  height = 300,
 }) => {
-  // Sort data by votes in descending order
+  const { theme } = useTheme();
+  const gridStroke = theme === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
+
   const sortedData = useMemo(() => {
     return [...data].sort((a, b) => b.votes - a.votes);
   }, [data]);
@@ -58,7 +60,7 @@ const VoteChart: React.FC<VoteChartProps> = ({
   };
 
   return (
-    <Card className="glass-card h-full">
+    <Card className="h-full border border-border bg-card">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-medium">{title}</CardTitle>
         {description && (
@@ -71,12 +73,12 @@ const VoteChart: React.FC<VoteChartProps> = ({
         <div className="h-[300px] w-full" style={{ height }}>
           {data.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart 
-                data={sortedData} 
+              <BarChart
+                data={sortedData}
                 margin={{ top: 10, right: 30, left: 0, bottom: 20 }}
                 barGap={8}
               >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.1)" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} />
                 <XAxis 
                   dataKey="name" 
                   axisLine={false}

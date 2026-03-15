@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Vote } from '@/types/vote';
 import { Company } from '@/types/company';
 import {
@@ -17,6 +17,7 @@ import {
 import { Pie, Line, Bar } from 'react-chartjs-2';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useTheme } from '@/context/ThemeContext';
 
 ChartJS.register(
   CategoryScale,
@@ -36,8 +37,14 @@ interface VoteChartsProps {
   companies: Company[];
 }
 
+function getChartTextColor(theme: 'light' | 'dark'): string {
+  return theme === 'dark' ? 'rgba(248, 250, 252, 0.9)' : 'rgba(15, 23, 42, 0.9)';
+}
+
 export const VoteCharts: React.FC<VoteChartsProps> = ({ votes, companies }) => {
-  // Função para obter o nome do serviço
+  const { theme } = useTheme();
+  const textColor = useMemo(() => getChartTextColor(theme), [theme]);
+
   const getServiceName = (vote: Vote) => {
     if (!companies || companies.length === 0) return 'Carregando...';
     const company = companies.find(c => c.id === vote.id_empresa);
@@ -109,38 +116,52 @@ export const VoteCharts: React.FC<VoteChartsProps> = ({ votes, companies }) => {
     ],
   };
 
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'bottom' as const,
+  const chartOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      color: textColor,
+      plugins: {
+        legend: {
+          position: 'bottom' as const,
+          labels: {
+            color: textColor,
+            usePointStyle: true,
+          },
+        },
       },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        max: 4,
+      scales: {
+        x: {
+          ticks: { color: textColor },
+          grid: { color: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' },
+        },
+        y: {
+          beginAtZero: true,
+          max: 4,
+          ticks: { color: textColor },
+          grid: { color: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' },
+        },
       },
-    },
-  };
+    }),
+    [textColor, theme]
+  );
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <div className="bg-white rounded-lg p-4 shadow-sm">
-        <h3 className="text-lg font-semibold mb-4">Distribuição de Avaliações</h3>
+      <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+        <h3 className="text-lg font-semibold mb-4 text-card-foreground">Distribuição de Avaliações</h3>
         <div className="h-[300px]">
           <Pie data={pieData} options={chartOptions} />
         </div>
       </div>
-      <div className="bg-white rounded-lg p-4 shadow-sm">
-        <h3 className="text-lg font-semibold mb-4">Tendência de Avaliações</h3>
+      <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+        <h3 className="text-lg font-semibold mb-4 text-card-foreground">Tendência de Avaliações</h3>
         <div className="h-[300px]">
           <Line data={lineData} options={chartOptions} />
         </div>
       </div>
-      <div className="bg-white rounded-lg p-4 shadow-sm">
-        <h3 className="text-lg font-semibold mb-4">Votos por Serviço</h3>
+      <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+        <h3 className="text-lg font-semibold mb-4 text-card-foreground">Votos por Serviço</h3>
         <div className="h-[300px]">
           <Bar data={barData} options={chartOptions} />
         </div>

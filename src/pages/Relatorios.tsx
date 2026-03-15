@@ -9,7 +9,6 @@ import { addDays } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { votes, companies } from '@/services/api';
 import { VoteAnalytics } from '@/types/vote';
-import Navbar from '@/components/Navbar';
 import { ExportPDF } from '@/components/export-pdf';
 import { ExportDetailedReport } from '@/components/export-detailed-report';
 import { Progress } from "@/components/ui/progress";
@@ -340,8 +339,7 @@ export default function Relatorios() {
   return (
 
     <div className="min-h-screen bg-background flex flex-col">
-      <Navbar />
-      <main className="flex-1 pt-24">
+      <main className="flex-1">
         <div className="container mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8">
             <div>

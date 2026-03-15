@@ -37,7 +37,6 @@ import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { User, CreateUserRequest, UpdateUserRequest, UserFormData, UserFormDataUpdate } from '@/types/user';
 import { users, companies } from '@/services/api';
-import Navbar from '@/components/Navbar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PermissionsTree } from '@/components/PermissionsTree';
 import { toast } from 'sonner';
@@ -361,8 +360,7 @@ export default function Users() {
   if (isLoadingUsers || isLoadingCompanies) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <Navbar />
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-24">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="grid grid-cols-1 gap-6">
             {[...Array(5)].map((_, index) => (
               <div
@@ -378,8 +376,7 @@ export default function Users() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Navbar />
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-24">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-2">Usuários</h1>
