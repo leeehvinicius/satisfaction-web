@@ -3,7 +3,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { LogOut, Activity } from 'lucide-react';
-import ThemeToggle from './ThemeToggle';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 
@@ -42,11 +41,10 @@ const Navbar: React.FC = () => {
           </Link>
         </div>
 
-        {/* Direita: tema, usuário, ações */}
+        {/* Direita: usuário, ações */}
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           {isAuthenticated ? (
             <>
-              <ThemeToggle />
               <span className="hidden max-w-[120px] truncate text-sm text-muted-foreground sm:max-w-[180px] md:inline">
                 {user?.nome ?? user?.username ?? 'Usuário'}
               </span>
@@ -62,7 +60,6 @@ const Navbar: React.FC = () => {
             </>
           ) : (
             <>
-              <ThemeToggle />
               <Link to="/login">
                 <Button
                   variant="ghost"
