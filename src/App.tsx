@@ -42,14 +42,14 @@ const AppContent = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="fixed inset-0 flex items-center justify-center w-full min-h-screen bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
   }
 
   const fallback = (
-    <div className="flex items-center justify-center min-h-[50vh]">
+    <div className="flex items-center justify-center w-full min-h-[50vh] py-12">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
     </div>
   );
