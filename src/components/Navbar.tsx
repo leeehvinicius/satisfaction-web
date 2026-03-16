@@ -46,7 +46,7 @@ const Navbar: React.FC = () => {
         {/* Esquerda: trigger (mobile) + título da página */}
         <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-3">
           <SidebarTrigger
-            className="md:hidden h-9 w-9 shrink-0 rounded-lg border border-border bg-background hover:bg-accent"
+            className="h-9 w-9 shrink-0 rounded-lg border border-border bg-background hover:bg-accent"
             aria-label="Abrir menu"
           />
           <span className="truncate text-lg font-semibold text-foreground">
