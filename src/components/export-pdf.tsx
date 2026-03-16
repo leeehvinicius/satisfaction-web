@@ -37,19 +37,19 @@ export function ExportPDF({
     const style = document.createElement('style');
     style.setAttribute('data-pdf-export-style', 'true');
     style.textContent = `
-      .pdf-exporting, .pdf-exporting * {
+      .pdf-exporting {
         background: #fff !important;
         box-shadow: none !important;
         filter: none !important;
         outline: none !important;
+        overflow: hidden !important;
       }
       .pdf-exporting * {
         position: static !important;
         transform: none !important;
         backdrop-filter: none !important;
-        color: #111827 !important; /* text-gray-900 */
+        color: #111827 !important; /* força texto escuro */
       }
-      .pdf-exporting { overflow: hidden !important; }
       .pdf-exporting [class*="ring"],
       .pdf-exporting .shadow,
       .pdf-exporting [class*="shadow"] { box-shadow: none !important; }
