@@ -26,8 +26,14 @@ export function ExportPDF({
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
     );
 
-  // aplica estilos temporários (fundo branco, remove sombras/sticky/fixed)
+  // aplica estilos temporários (tema claro, fundo branco, remove sombras/sticky/fixed)
   function withExportStyles(target: HTMLElement) {
+    const htmlEl = document.documentElement;
+    const hadDarkClass = htmlEl.classList.contains('dark');
+    if (hadDarkClass) {
+      htmlEl.classList.remove('dark');
+    }
+
     const style = document.createElement('style');
     style.setAttribute('data-pdf-export-style', 'true');
     style.textContent = `
@@ -41,6 +47,7 @@ export function ExportPDF({
         position: static !important;
         transform: none !important;
         backdrop-filter: none !important;
+        color: #111827 !important; /* text-gray-900 */
       }
       .pdf-exporting { overflow: hidden !important; }
       .pdf-exporting [class*="ring"],
@@ -54,6 +61,9 @@ export function ExportPDF({
     target.style.backgroundColor = '#fff';
 
     return () => {
+      if (hadDarkClass) {
+        htmlEl.classList.add('dark');
+      }
       target.classList.remove('pdf-exporting');
       target.style.backgroundColor = prevBg;
       style.remove();
@@ -204,19 +214,31 @@ export function ExportPDF({
 
           const pageIndex = renderedPages + 1;
 
-          // Header apenas na primeira página
+          // Header mais rico apenas na primeira página
           if (pageIndex === 1) {
-            pdf.setFontSize(24);
-            pdf.text(title, pageWidthMM / 2, marginMM + 10, { align: 'center' });
-            pdf.setFontSize(16);
-            pdf.text(subtitle, pageWidthMM / 2, marginMM + 18, { align: 'center' });
+            // faixa superior suave
+            pdf.setFillColor(248, 250, 252);
+            pdf.rect(0, 0, pageWidthMM, marginMM + headerMM, 'F');
+
+            pdf.setTextColor(17, 24, 39);
+            pdf.setFontSize(18);
+            pdf.text(title, marginMM, marginMM + 8, { align: 'left' });
+
+            pdf.setTextColor(75, 85, 99);
             pdf.setFontSize(12);
+            pdf.text(subtitle, marginMM, marginMM + 15, { align: 'left' });
+
+            pdf.setFontSize(10);
             pdf.text(
-              `Gerado em: ${new Date().toLocaleDateString('pt-BR')}`,
-              pageWidthMM / 2,
-              marginMM + 26,
-              { align: 'center' }
+              `Gerado em ${new Date().toLocaleDateString('pt-BR')}`,
+              marginMM,
+              marginMM + 22,
+              { align: 'left' }
             );
+
+            // linha separadora
+            pdf.setDrawColor(229, 231, 235);
+            pdf.line(marginMM, marginMM + headerMM, pageWidthMM - marginMM, marginMM + headerMM);
           }
 
           const startYMM = marginMM + (pageIndex === 1 ? headerMM : 0);
@@ -232,18 +254,23 @@ export function ExportPDF({
             'FAST'
           );
 
-          // Footer em todas as páginas
-          pdf.setFontSize(10);
-          pdf.text(
-            `Página ${pageIndex}`,
-            pageWidthMM / 2,
-            pageHeightMM - marginMM,
-            { align: 'center' }
-          );
-
           renderedPages++;
           yPx += sliceHeightPx;
         }
+      }
+
+      // Footer com número de página em todas as páginas (Página X de Y)
+      const totalPages = pdf.getNumberOfPages();
+      pdf.setTextColor(148, 163, 184);
+      pdf.setFontSize(10);
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        pdf.text(
+          `Página ${i} de ${totalPages}`,
+          pageWidthMM / 2,
+          pageHeightMM - marginMM,
+          { align: 'center' }
+        );
       }
 
       cleanup(); // restaura estilos
