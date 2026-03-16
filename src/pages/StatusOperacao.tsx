@@ -159,7 +159,7 @@ export default function StatusOperacao() {
               <th className="p-3 text-left font-semibold">#</th>
               <th className="p-3 text-left font-semibold">Empresa</th>
               <th className="p-3 text-center font-semibold">Meta/Dia</th>
-              <th className="p-3 text-center font-semibold">Meta/Período</th>
+              <th className="p-3 text-center font-semibold">Meta/Dias</th>
               <th className="p-3 text-center font-semibold">Total Votos</th>
               <th className="p-3 text-center font-semibold">% da meta</th>
               <th className="p-3 text-center font-semibold">% Satisfação</th>
