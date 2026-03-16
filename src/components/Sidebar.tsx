@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 import { votes } from '@/services/api';
 import {
   Home,
@@ -9,7 +10,6 @@ import {
   Building,
   LayoutList,
   LogOut,
-  Activity,
   Monitor,
   ThumbsUp,
   Users,
@@ -35,10 +35,16 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 
+/** Altura da logo em pixels - altere aqui o tamanho */
+const SIDEBAR_LOGO_HEIGHT_PX = 56;
+/** Largura máxima da logo em pixels (sidebar = 256px) */
+const SIDEBAR_LOGO_MAX_WIDTH_PX = 180;
+
 const Sidebar: React.FC = () => {
   const { isAuthenticated, logout, user, hasPermission } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const { theme } = useTheme();
   const { isMobile, setOpenMobile } = useSidebar();
 
   const now = new Date();
@@ -99,14 +105,25 @@ const Sidebar: React.FC = () => {
         'dark:bg-neutral-950 dark:border-neutral-800'
       )}
     >
-      <SidebarHeader className="flex flex-row items-center justify-between gap-2 border-b border-border px-4 py-3">
+      <SidebarHeader
+        className="flex flex-row items-center justify-between gap-1 border-b border-border px-1 py-1"
+        style={{ minHeight: SIDEBAR_LOGO_HEIGHT_PX + 12 }}
+      >
         <Link
           to="/"
           onClick={handleNav}
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-md outline-none ring-sidebar-ring focus-visible:ring-2"
+          className="flex min-w-0 flex-1 items-center justify-center rounded-md outline-none ring-sidebar-ring focus-visible:ring-2"
         >
-          <Activity className="h-6 w-6 shrink-0 text-primary" />
-          <span className="truncate text-lg font-semibold text-foreground">Satisfaction</span>
+          <img
+            src={theme === 'dark' ? '/sidebar_dark_aberto.png' : '/sidebar_white_aberto.png'}
+            alt="Satisfaction"
+            className="object-contain object-center"
+            style={{
+              height: `${SIDEBAR_LOGO_HEIGHT_PX}px`,
+              width: 'auto',
+              maxWidth: `${SIDEBAR_LOGO_MAX_WIDTH_PX}px`,
+            }}
+          />
         </Link>
         {isMobile && (
           <Button

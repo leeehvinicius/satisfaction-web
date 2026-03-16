@@ -61,7 +61,7 @@ const AppContent = () => {
           <Sidebar />
           <div className="flex-1 min-w-0">
             <Navbar />
-            <SidebarInset className="pt-14">
+            <SidebarInset className="pt-[68px]">
               <div className="container mx-auto min-w-0 px-4 py-4 sm:px-6 lg:px-8">
                 <Suspense fallback={fallback}>
                 <Routes>

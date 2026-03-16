@@ -162,6 +162,7 @@ export default function StatusOperacao() {
               <th className="p-3 text-center font-semibold">Meta/Dias</th>
               <th className="p-3 text-center font-semibold">Total Votos</th>
               <th className="p-3 text-center font-semibold">% da meta</th>
+              <th className="p-3 text-center font-semibold">Diferença %</th>
               <th className="p-3 text-center font-semibold">% Satisfação</th>
               <th className="p-3 text-center font-semibold">% Melhoria</th>
             </tr>
@@ -182,6 +183,22 @@ export default function StatusOperacao() {
                   <span className={company.percentualMeta >= 30 ? 'text-green-600 dark:text-green-400 font-medium' : 'text-muted-foreground'}>
                     {company.percentualMeta.toFixed(1)}%
                   </span>
+                </td>
+                <td className="p-3 text-center">
+                  {company.expectedNoPeriodo > 0 ? (
+                    <span
+                      className={
+                        company.totalVotes >= company.expectedNoPeriodo
+                          ? 'font-medium text-green-600 dark:text-green-400'
+                          : 'text-muted-foreground'
+                      }
+                    >
+                      {((company.totalVotes - company.expectedNoPeriodo) / company.expectedNoPeriodo * 100) >= 0 ? '+' : ''}
+                      {((company.totalVotes - company.expectedNoPeriodo) / company.expectedNoPeriodo * 100).toFixed(1)}%
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
                 </td>
                 <td className="p-3 text-center">
                   <div className="inline-flex items-center gap-2">

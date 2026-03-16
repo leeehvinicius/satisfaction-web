@@ -2,9 +2,23 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { LogOut, Activity } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
+
+const ROTA_PARA_TITULO: Record<string, string> = {
+  '/': 'Home',
+  '/dashboard': 'Dashboard',
+  '/monitor': 'Monitor',
+  '/companies': 'Empresas',
+  '/service-types': 'Tipos de Serviço',
+  '/votes': 'Votos',
+  '/users': 'Usuários',
+  '/relatorios': 'Relatórios',
+  '/status-operacao': 'Status da Operação',
+  '/login': 'Login',
+  '/register': 'Registrar',
+};
 
 const Navbar: React.FC = () => {
   const { isAuthenticated, logout, user } = useAuth();
@@ -12,33 +26,32 @@ const Navbar: React.FC = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
+  const pageTitle = (() => {
+    const path = location.pathname;
+    if (ROTA_PARA_TITULO[path]) return ROTA_PARA_TITULO[path];
+    if (path.startsWith('/monitor/')) return 'Monitor';
+    return 'Satisfaction';
+  })();
+
   return (
     <header
       className={cn(
-        'fixed top-0 z-50 h-14 w-full border-b border-border bg-background/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80',
+        'fixed top-0 z-50 h-[68px] min-h-[68px] w-full border-b border-border bg-background/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80',
         'transition-[left,width] duration-200 ease-out',
         'left-0 md:left-[var(--sidebar-width)]'
       )}
       style={{ '--sidebar-width': '16rem' } as React.CSSProperties}
     >
-      <div className="flex h-full items-center justify-between gap-4 px-4 sm:px-6">
-        {/* Esquerda: trigger (mobile) + logo */}
+      <div className="flex h-[68px] min-h-[68px] items-center justify-between gap-4 px-4 sm:px-6">
+        {/* Esquerda: trigger (mobile) + título da página */}
         <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-3">
           <SidebarTrigger
             className="md:hidden h-9 w-9 shrink-0 rounded-lg border border-border bg-background hover:bg-accent"
             aria-label="Abrir menu"
           />
-          <Link
-            to={isAuthenticated ? '/dashboard' : '/'}
-            className="flex shrink-0 items-center gap-2 rounded-md outline-none ring-ring focus-visible:ring-2"
-          >
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Activity className="h-5 w-5" />
-            </div>
-            <span className="hidden font-semibold text-foreground sm:inline-block truncate text-lg">
-              Satisfaction
-            </span>
-          </Link>
+          <span className="truncate text-lg font-semibold text-foreground">
+            {pageTitle}
+          </span>
         </div>
 
         {/* Direita: usuário, ações */}

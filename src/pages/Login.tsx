@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 import { User, Lock, LogIn, Eye, EyeOff, Sparkles } from 'lucide-react';
 
 
@@ -16,6 +17,7 @@ const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { theme } = useTheme();
 
   const {
     register,
@@ -38,8 +40,9 @@ const Login: React.FC = () => {
 
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-white to-purple-100 dark:from-gray-900 dark:via-gray-950 dark:to-black px-4 py-8">
-      <div className="w-full max-w-5xl">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-indigo-100 via-white to-purple-100 dark:from-gray-900 dark:via-gray-950 dark:to-black px-4 py-8">
+      <div className="flex-1 flex items-center justify-center w-full">
+        <div className="w-full max-w-5xl">
         <div className="grid gap-10 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] items-center">
           {/* Coluna de branding / destaque (some em telas muito pequenas) */}
           <div className="hidden md:flex flex-col justify-center space-y-6 bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/40 dark:border-gray-800 px-8 py-10 relative overflow-hidden">
@@ -229,7 +232,15 @@ const Login: React.FC = () => {
             </div>
           </div>
         </div>
+        </div>
       </div>
+      <footer className="flex justify-center pb-5 pt-2 shrink-0">
+        <img
+          src={theme === 'dark' ? '/logo_dark.png' : '/logo_white.png'}
+          alt="Logo"
+          className="h-12 w-auto object-contain opacity-90"
+        />
+      </footer>
     </div>
   );
 };
