@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Check, ChevronsUpDown, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, addDays } from 'date-fns';
 
 export default function ClonarVotos() {
   const [selectedCompany, setSelectedCompany] = useState('');
@@ -54,7 +54,21 @@ export default function ClonarVotos() {
   const empresaSelecionada = companiesList?.find((c) => c.id === selectedCompany);
   const deveOcultarRuim = empresaSelecionada?.qtdbutao === 3;
 
-  const renderTable = (analytics: any, isLoading: boolean) => {
+  const buildFullDayRange = (from: string, to: string, apiDays: any[]) => {
+    const result: any[] = [];
+    const start = parseISO(from);
+    const end = parseISO(to);
+    const map = new Map(apiDays.map((d) => [d.data, d]));
+    let current = start;
+    while (current <= end) {
+      const key = format(current, 'yyyy-MM-dd');
+      result.push(map.get(key) ?? { data: key, Ótimo: 0, Bom: 0, Regular: 0, Ruim: 0, total: 0 });
+      current = addDays(current, 1);
+    }
+    return result;
+  };
+
+  const renderTable = (analytics: any, isLoading: boolean, from: string, to: string) => {
     if (isLoading) {
       return (
         <div className="flex items-center justify-center py-8">
@@ -71,7 +85,9 @@ export default function ClonarVotos() {
       );
     }
 
-    const votosPorDia: any[] = analytics.votesByDay || [];
+    const votosPorDia: any[] = from && to
+      ? buildFullDayRange(from, to, analytics.votesByDay || [])
+      : analytics.votesByDay || [];
 
     return (
       <div className="overflow-x-auto">
@@ -270,7 +286,7 @@ export default function ClonarVotos() {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  {renderTable(leftAnalytics, leftLoading)}
+                  {renderTable(leftAnalytics, leftLoading, leftFrom, leftTo)}
                 </CardContent>
               </Card>
 
@@ -300,7 +316,7 @@ export default function ClonarVotos() {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  {renderTable(rightAnalytics, rightLoading)}
+                  {renderTable(rightAnalytics, rightLoading, rightFrom, rightTo)}
                 </CardContent>
               </Card>
             </div>
