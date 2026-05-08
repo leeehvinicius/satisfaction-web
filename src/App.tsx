@@ -24,6 +24,7 @@ const Votes = lazy(() => import("./pages/Votes"));
 const Users = lazy(() => import("./pages/Users"));
 const Relatorios = lazy(() => import("./pages/Relatorios"));
 const StatusOperacao = lazy(() => import("./pages/StatusOperacao"));
+const ClonarVotos = lazy(() => import("./pages/ClonarVotos"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Create a client for React Query
@@ -75,6 +76,7 @@ const AppContent = () => {
                   <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
                   <Route path="/relatorios" element={<ProtectedRoute><Relatorios /></ProtectedRoute>} />
                   <Route path="/status-operacao" element={<ProtectedRoute><StatusOperacao /></ProtectedRoute>} />
+                  <Route path="/clonar-votos" element={<ProtectedRoute><ClonarVotos /></ProtectedRoute>} />
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />
                 </Routes>
                 </Suspense>
@@ -97,6 +99,7 @@ const AppContent = () => {
             <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
             <Route path="/relatorios" element={<ProtectedRoute><Relatorios /></ProtectedRoute>} />
             <Route path="/status-operacao" element={<ProtectedRoute><StatusOperacao /></ProtectedRoute>} />
+            <Route path="/clonar-votos" element={<ProtectedRoute><ClonarVotos /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
           </Suspense>
