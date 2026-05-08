@@ -88,7 +88,7 @@ const Sidebar: React.FC = () => {
         { title: 'Usuários', icon: Users, path: '/users', permission: 'autorizacoes_users' },
         { title: 'Relatórios', icon: FileText, path: '/relatorios', permission: 'relatorios' },
         { title: 'Status da Operação', icon: BarChart3, path: '/status-operacao', permission: 'relatorios' },
-        { title: 'Clonar Votos', icon: Copy, path: '/clonar-votos', permission: 'relatorios' },
+        { title: 'Clonar Votos', icon: Copy, path: '/clonar-votos', permission: 'pesquisas_votes' },
       ].filter((item) => hasPermission(item.permission))
     : [
         { title: 'Home', path: '/', icon: Home },
