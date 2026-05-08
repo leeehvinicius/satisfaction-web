@@ -1,13 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { votes, companies } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Check, ChevronsUpDown, Copy } from 'lucide-react';
+import { Check, ChevronsUpDown, Copy, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, parseISO, addDays } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+
+interface DayData {
+  data: string;
+  Ótimo: number;
+  Bom: number;
+  Regular: number;
+  Ruim: number;
+  total: number;
+}
 
 export default function ClonarVotos() {
   const [selectedCompany, setSelectedCompany] = useState('');
@@ -18,6 +36,10 @@ export default function ClonarVotos() {
   const [leftTo, setLeftTo] = useState('');
   const [rightFrom, setRightFrom] = useState('');
   const [rightTo, setRightTo] = useState('');
+
+  const draggedDay = useRef<DayData | null>(null);
+  const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+  const [cloneConfirm, setCloneConfirm] = useState<{ source: DayData; target: DayData } | null>(null);
 
   const { data: companiesList } = useQuery({
     queryKey: ['companies-mine'],
@@ -34,28 +56,22 @@ export default function ClonarVotos() {
   const { data: leftAnalytics, isLoading: leftLoading } = useQuery({
     queryKey: ['clonar-votos-left', selectedCompany, leftFrom, leftTo],
     queryFn: () =>
-      votes.getAnalyticsRelatorio(selectedCompany, {
-        startDate: leftFrom,
-        endDate: leftTo,
-      }),
+      votes.getAnalyticsRelatorio(selectedCompany, { startDate: leftFrom, endDate: leftTo }),
     enabled: !!selectedCompany && !!leftFrom && !!leftTo,
   });
 
   const { data: rightAnalytics, isLoading: rightLoading } = useQuery({
     queryKey: ['clonar-votos-right', selectedCompany, rightFrom, rightTo],
     queryFn: () =>
-      votes.getAnalyticsRelatorio(selectedCompany, {
-        startDate: rightFrom,
-        endDate: rightTo,
-      }),
+      votes.getAnalyticsRelatorio(selectedCompany, { startDate: rightFrom, endDate: rightTo }),
     enabled: !!selectedCompany && !!rightFrom && !!rightTo,
   });
 
   const empresaSelecionada = companiesList?.find((c) => c.id === selectedCompany);
   const deveOcultarRuim = empresaSelecionada?.qtdbutao === 3;
 
-  const buildFullDayRange = (from: string, to: string, apiDays: any[]) => {
-    const result: any[] = [];
+  const buildFullDayRange = (from: string, to: string, apiDays: DayData[]): DayData[] => {
+    const result: DayData[] = [];
     const start = parseISO(from);
     const end = parseISO(to);
     const map = new Map(apiDays.map((d) => [d.data, d]));
@@ -68,7 +84,13 @@ export default function ClonarVotos() {
     return result;
   };
 
-  const renderTable = (analytics: any, isLoading: boolean, from: string, to: string) => {
+  const renderTable = (
+    analytics: any,
+    isLoading: boolean,
+    from: string,
+    to: string,
+    role: 'source' | 'target'
+  ) => {
     if (isLoading) {
       return (
         <div className="flex items-center justify-center py-8">
@@ -85,12 +107,18 @@ export default function ClonarVotos() {
       );
     }
 
-    const votosPorDia: any[] = from && to
-      ? buildFullDayRange(from, to, analytics.votesByDay || [])
-      : analytics.votesByDay || [];
+    const votosPorDia: DayData[] =
+      from && to
+        ? buildFullDayRange(from, to, analytics.votesByDay || [])
+        : analytics.votesByDay || [];
 
     return (
       <div className="overflow-x-auto">
+        {role === 'source' && (
+          <p className="mb-2 text-xs text-muted-foreground">
+            Arraste um dia para o Período B para cloná-lo.
+          </p>
+        )}
         <table className="min-w-full text-sm">
           <thead className="bg-gray-100 dark:bg-neutral-800">
             <tr>
@@ -115,43 +143,82 @@ export default function ClonarVotos() {
                 </td>
               </tr>
             ) : (
-              votosPorDia.map((day: any, index: number) => (
-                <tr
-                  key={index}
-                  className={
-                    index % 2 === 0
-                      ? 'bg-white dark:bg-transparent'
-                      : 'bg-gray-50 dark:bg-neutral-900/30'
-                  }
-                >
-                  <td className="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                    {format(parseISO(day.data), 'dd/MM/yyyy')}
-                  </td>
-                  <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
-                    {day.Ótimo || 0}
-                  </td>
-                  <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
-                    {day.Bom || 0}
-                  </td>
-                  <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
-                    {day.Regular || 0}
-                  </td>
-                  {!deveOcultarRuim && (
-                    <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
-                      {day.Ruim || 0}
+              votosPorDia.map((day, index) => {
+                const isDropTarget = role === 'target' && dragOverDate === day.data;
+                return (
+                  <tr
+                    key={day.data}
+                    draggable={role === 'source'}
+                    onDragStart={
+                      role === 'source'
+                        ? () => { draggedDay.current = day; }
+                        : undefined
+                    }
+                    onDragOver={
+                      role === 'target'
+                        ? (e) => { e.preventDefault(); setDragOverDate(day.data); }
+                        : undefined
+                    }
+                    onDragLeave={
+                      role === 'target'
+                        ? () => setDragOverDate(null)
+                        : undefined
+                    }
+                    onDrop={
+                      role === 'target'
+                        ? (e) => {
+                            e.preventDefault();
+                            setDragOverDate(null);
+                            if (draggedDay.current) {
+                              setCloneConfirm({ source: draggedDay.current, target: day });
+                              draggedDay.current = null;
+                            }
+                          }
+                        : undefined
+                    }
+                    className={cn(
+                      'transition-colors',
+                      role === 'source' && 'cursor-grab active:cursor-grabbing',
+                      isDropTarget
+                        ? 'bg-primary/10 outline outline-2 outline-primary/50'
+                        : index % 2 === 0
+                          ? 'bg-white dark:bg-transparent'
+                          : 'bg-gray-50 dark:bg-neutral-900/30',
+                      role === 'source' && 'hover:bg-blue-50 dark:hover:bg-blue-950/20'
+                    )}
+                  >
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                      {format(parseISO(day.data), 'dd/MM/yyyy')}
                     </td>
-                  )}
-                  <td className="px-3 py-2 text-center font-bold text-gray-700 dark:text-gray-300">
-                    {day.total || 0}
-                  </td>
-                </tr>
-              ))
+                    <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
+                      {day.Ótimo || 0}
+                    </td>
+                    <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
+                      {day.Bom || 0}
+                    </td>
+                    <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
+                      {day.Regular || 0}
+                    </td>
+                    {!deveOcultarRuim && (
+                      <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
+                        {day.Ruim || 0}
+                      </td>
+                    )}
+                    <td className="px-3 py-2 text-center font-bold text-gray-700 dark:text-gray-300">
+                      {day.total || 0}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
       </div>
     );
   };
+
+  const formatDate = (iso: string) =>
+    format(parseISO(iso), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
 
   return (
     <div className="min-h-screen bg-background">
@@ -260,7 +327,7 @@ export default function ClonarVotos() {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* Período A */}
+              {/* Período A — source */}
               <Card className="border-border">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base font-semibold">Período A</CardTitle>
@@ -286,11 +353,11 @@ export default function ClonarVotos() {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  {renderTable(leftAnalytics, leftLoading, leftFrom, leftTo)}
+                  {renderTable(leftAnalytics, leftLoading, leftFrom, leftTo, 'source')}
                 </CardContent>
               </Card>
 
-              {/* Período B */}
+              {/* Período B — target */}
               <Card className="border-border">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base font-semibold">Período B</CardTitle>
@@ -316,13 +383,84 @@ export default function ClonarVotos() {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  {renderTable(rightAnalytics, rightLoading, rightFrom, rightTo)}
+                  {renderTable(rightAnalytics, rightLoading, rightFrom, rightTo, 'target')}
                 </CardContent>
               </Card>
             </div>
           )}
         </div>
       </div>
+
+      {/* Modal de confirmação de clone */}
+      <Dialog open={!!cloneConfirm} onOpenChange={() => setCloneConfirm(null)}>
+        <DialogContent className="max-w-md border-border bg-card">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Copy className="h-4 w-4 text-primary" />
+              Confirmar clonagem
+            </DialogTitle>
+            <DialogDescription>
+              Deseja clonar os votos do dia abaixo para o dia de destino?
+            </DialogDescription>
+          </DialogHeader>
+
+          {cloneConfirm && (
+            <div className="space-y-4 py-2">
+              <div className="flex items-start gap-3">
+                {/* Origem */}
+                <div className="flex-1 rounded-lg border border-border bg-muted/30 p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Origem (Período A)
+                  </p>
+                  <p className="font-medium">{formatDate(cloneConfirm.source.data)}</p>
+                  <div className="mt-2 space-y-0.5 text-sm text-muted-foreground">
+                    <p>😊 Ótimo: <span className="font-medium text-foreground">{cloneConfirm.source.Ótimo}</span></p>
+                    <p>🙂 Bom: <span className="font-medium text-foreground">{cloneConfirm.source.Bom}</span></p>
+                    <p>😐 Regular: <span className="font-medium text-foreground">{cloneConfirm.source.Regular}</span></p>
+                    {!deveOcultarRuim && (
+                      <p>😞 Ruim: <span className="font-medium text-foreground">{cloneConfirm.source.Ruim}</span></p>
+                    )}
+                    <p className="font-semibold text-foreground">Total: {cloneConfirm.source.total}</p>
+                  </div>
+                </div>
+
+                <ArrowRight className="mt-8 h-5 w-5 shrink-0 text-muted-foreground" />
+
+                {/* Destino */}
+                <div className="flex-1 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Destino (Período B)
+                  </p>
+                  <p className="font-medium">{formatDate(cloneConfirm.target.data)}</p>
+                  <div className="mt-2 space-y-0.5 text-sm text-muted-foreground">
+                    <p>😊 Ótimo: <span className="font-medium text-foreground">{cloneConfirm.target.Ótimo}</span></p>
+                    <p>🙂 Bom: <span className="font-medium text-foreground">{cloneConfirm.target.Bom}</span></p>
+                    <p>😐 Regular: <span className="font-medium text-foreground">{cloneConfirm.target.Regular}</span></p>
+                    {!deveOcultarRuim && (
+                      <p>😞 Ruim: <span className="font-medium text-foreground">{cloneConfirm.target.Ruim}</span></p>
+                    )}
+                    <p className="font-semibold text-foreground">Total: {cloneConfirm.target.total}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setCloneConfirm(null)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                // lógica de clonagem será implementada aqui
+                setCloneConfirm(null);
+              }}
+            >
+              Confirmar clonagem
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
