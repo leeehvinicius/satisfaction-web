@@ -1,5 +1,7 @@
-import React, { useState, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useRef, useEffect } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
+import { toast } from 'sonner';
 import { votes, companies } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,7 +15,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Check, ChevronsUpDown, Copy, ArrowRight } from 'lucide-react';
+import { Check, CheckCircle2, ChevronsUpDown, Copy, ArrowRight, Sparkles, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, parseISO, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -27,7 +29,28 @@ interface DayData {
   total: number;
 }
 
+/** Dia da semana por extenso em pt-BR (ex.: Segunda-feira). */
+function formatWeekdayLongPt(isoDate: string): string {
+  const raw = format(parseISO(isoDate), 'EEEE', { locale: ptBR });
+  return raw.charAt(0).toLocaleUpperCase('pt-BR') + raw.slice(1);
+}
+
+type TransferPhase = 'idle' | 'running' | 'success' | 'error';
+
+function cloneErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const data = err.response?.data as { message?: string | string[] } | undefined;
+    const m = data?.message;
+    if (Array.isArray(m)) return m.join(', ');
+    if (typeof m === 'string') return m;
+    return err.message || 'Falha ao clonar votos.';
+  }
+  if (err instanceof Error) return err.message;
+  return 'Falha ao clonar votos.';
+}
+
 export default function ClonarVotos() {
+  const queryClient = useQueryClient();
   const [selectedCompany, setSelectedCompany] = useState('');
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -40,6 +63,52 @@ export default function ClonarVotos() {
   const draggedDay = useRef<DayData | null>(null);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
   const [cloneConfirm, setCloneConfirm] = useState<{ source: DayData; target: DayData } | null>(null);
+  const [selectedSourceDay, setSelectedSourceDay] = useState<DayData | null>(null);
+  const [selectedTargetDay, setSelectedTargetDay] = useState<DayData | null>(null);
+  const [transferPhase, setTransferPhase] = useState<TransferPhase>('idle');
+  const [lastClonedCount, setLastClonedCount] = useState<number | null>(null);
+
+  const cloneMutation = useMutation({
+    mutationFn: votes.cloneDay,
+    onSuccess: (data) => {
+      void queryClient.invalidateQueries({ queryKey: ['clonar-votos-left'] });
+      void queryClient.invalidateQueries({ queryKey: ['clonar-votos-right'] });
+      setLastClonedCount(data.cloned);
+      setTransferPhase('success');
+      if (data.cloned === 0) {
+        toast.info('Nenhum voto ativo no dia de origem', {
+          description: 'Nada foi copiado. Verifique se há votos na data de origem.',
+        });
+      } else {
+        toast.success(`${data.cloned} voto(s) transferidos para o dia de destino.`);
+      }
+      window.setTimeout(() => {
+        setTransferPhase('idle');
+        setLastClonedCount(null);
+      }, 2600);
+    },
+    onError: (err) => {
+      toast.error(cloneErrorMessage(err));
+      setTransferPhase('error');
+      window.setTimeout(() => setTransferPhase('idle'), 1700);
+    },
+  });
+
+  const periodosDefinidos =
+    !!selectedCompany && !!leftFrom && !!leftTo && !!rightFrom && !!rightTo;
+
+  useEffect(() => {
+    setSelectedSourceDay(null);
+  }, [leftFrom, leftTo]);
+
+  useEffect(() => {
+    setSelectedTargetDay(null);
+  }, [rightFrom, rightTo]);
+
+  useEffect(() => {
+    setSelectedSourceDay(null);
+    setSelectedTargetDay(null);
+  }, [selectedCompany]);
 
   const { data: companiesList } = useQuery({
     queryKey: ['companies-mine'],
@@ -89,7 +158,9 @@ export default function ClonarVotos() {
     isLoading: boolean,
     from: string,
     to: string,
-    role: 'source' | 'target'
+    role: 'source' | 'target',
+    selectedDateKey: string | null,
+    onSelectDay: (day: DayData) => void
   ) => {
     if (isLoading) {
       return (
@@ -116,13 +187,19 @@ export default function ClonarVotos() {
       <div className="overflow-x-auto">
         {role === 'source' && (
           <p className="mb-2 text-xs text-muted-foreground">
-            Arraste um dia para o Período B para cloná-lo.
+            Clique em um dia para selecionar a origem, ou arraste-o para o Período B.
+          </p>
+        )}
+        {role === 'target' && (
+          <p className="mb-2 text-xs text-muted-foreground">
+            Clique em um dia para selecionar o destino, ou solte aqui o dia arrastado do Período A.
           </p>
         )}
         <table className="min-w-full text-sm">
           <thead className="bg-gray-100 dark:bg-neutral-800">
             <tr>
               <th className="px-3 py-2 text-left text-gray-700 dark:text-gray-200">Data</th>
+              <th className="px-3 py-2 text-left text-gray-700 dark:text-gray-200">Semana</th>
               <th className="px-3 py-2 text-center text-gray-700 dark:text-gray-200">😊 Ótimo</th>
               <th className="px-3 py-2 text-center text-gray-700 dark:text-gray-200">🙂 Bom</th>
               <th className="px-3 py-2 text-center text-gray-700 dark:text-gray-200">😐 Regular</th>
@@ -136,7 +213,7 @@ export default function ClonarVotos() {
             {votosPorDia.length === 0 ? (
               <tr>
                 <td
-                  colSpan={deveOcultarRuim ? 5 : 6}
+                  colSpan={deveOcultarRuim ? 6 : 7}
                   className="px-3 py-4 text-center text-muted-foreground"
                 >
                   Nenhum voto encontrado neste período.
@@ -145,10 +222,12 @@ export default function ClonarVotos() {
             ) : (
               votosPorDia.map((day, index) => {
                 const isDropTarget = role === 'target' && dragOverDate === day.data;
+                const isRowSelected = selectedDateKey === day.data;
                 return (
                   <tr
                     key={day.data}
                     draggable={role === 'source'}
+                    onClick={() => onSelectDay(day)}
                     onDragStart={
                       role === 'source'
                         ? () => { draggedDay.current = day; }
@@ -181,14 +260,20 @@ export default function ClonarVotos() {
                       role === 'source' && 'cursor-grab active:cursor-grabbing',
                       isDropTarget
                         ? 'bg-primary/10 outline outline-2 outline-primary/50'
-                        : index % 2 === 0
-                          ? 'bg-white dark:bg-transparent'
-                          : 'bg-gray-50 dark:bg-neutral-900/30',
-                      role === 'source' && 'hover:bg-blue-50 dark:hover:bg-blue-950/20'
+                        : isRowSelected
+                          ? 'bg-primary/15 outline outline-2 outline-primary/40'
+                          : index % 2 === 0
+                            ? 'bg-white dark:bg-transparent'
+                            : 'bg-gray-50 dark:bg-neutral-900/30',
+                      role === 'source' && 'hover:bg-blue-50 dark:hover:bg-blue-950/20',
+                      (role === 'target' || role === 'source') && 'cursor-pointer'
                     )}
                   >
                     <td className="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300">
                       {format(parseISO(day.data), 'dd/MM/yyyy')}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-left text-gray-700 dark:text-gray-300">
+                      {formatWeekdayLongPt(day.data)}
                     </td>
                     <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
                       {day.Ótimo || 0}
@@ -219,6 +304,18 @@ export default function ClonarVotos() {
 
   const formatDate = (iso: string) =>
     format(parseISO(iso), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+
+  const handleConfirmClone = () => {
+    if (!cloneConfirm || !selectedCompany) return;
+    const payload = {
+      id_empresa: selectedCompany,
+      sourceDate: cloneConfirm.source.data,
+      targetDate: cloneConfirm.target.data,
+    };
+    setCloneConfirm(null);
+    setTransferPhase('running');
+    cloneMutation.mutate(payload);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -353,7 +450,15 @@ export default function ClonarVotos() {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  {renderTable(leftAnalytics, leftLoading, leftFrom, leftTo, 'source')}
+                  {renderTable(
+                    leftAnalytics,
+                    leftLoading,
+                    leftFrom,
+                    leftTo,
+                    'source',
+                    selectedSourceDay?.data ?? null,
+                    (day) => setSelectedSourceDay((prev) => (prev?.data === day.data ? null : day))
+                  )}
                 </CardContent>
               </Card>
 
@@ -383,9 +488,60 @@ export default function ClonarVotos() {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  {renderTable(rightAnalytics, rightLoading, rightFrom, rightTo, 'target')}
+                  {renderTable(
+                    rightAnalytics,
+                    rightLoading,
+                    rightFrom,
+                    rightTo,
+                    'target',
+                    selectedTargetDay?.data ?? null,
+                    (day) => setSelectedTargetDay((prev) => (prev?.data === day.data ? null : day))
+                  )}
                 </CardContent>
               </Card>
+
+              {periodosDefinidos && (
+                <div className="flex flex-col items-stretch gap-3 rounded-xl border border-border bg-muted/20 p-4 lg:col-span-2">
+                  <p className="text-center text-sm text-muted-foreground">
+                    {selectedSourceDay && selectedTargetDay
+                      ? 'Confira origem e destino e clique em Clonar para abrir a confirmação.'
+                      : 'Selecione um dia em cada período (clique na linha) para habilitar a clonagem.'}
+                  </p>
+                  <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:flex-wrap">
+                    <div className="flex flex-wrap items-center justify-center gap-2 text-sm">
+                      <span className="text-muted-foreground">Origem (A):</span>
+                      <span className="font-medium">
+                        {selectedSourceDay
+                          ? format(parseISO(selectedSourceDay.data), 'dd/MM/yyyy')
+                          : '—'}
+                      </span>
+                      <ArrowRight className="hidden h-4 w-4 text-muted-foreground sm:inline" />
+                      <span className="text-muted-foreground sm:hidden">→</span>
+                      <span className="text-muted-foreground">Destino (B):</span>
+                      <span className="font-medium">
+                        {selectedTargetDay
+                          ? format(parseISO(selectedTargetDay.data), 'dd/MM/yyyy')
+                          : '—'}
+                      </span>
+                    </div>
+                    <Button
+                      className="sm:ml-2"
+                      disabled={!selectedSourceDay || !selectedTargetDay}
+                      onClick={() => {
+                        if (selectedSourceDay && selectedTargetDay) {
+                          setCloneConfirm({
+                            source: selectedSourceDay,
+                            target: selectedTargetDay,
+                          });
+                        }
+                      }}
+                    >
+                      <Copy className="mr-2 h-4 w-4" />
+                      Clonar
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -447,20 +603,94 @@ export default function ClonarVotos() {
           )}
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setCloneConfirm(null)}>
+            <Button variant="outline" onClick={() => setCloneConfirm(null)} disabled={cloneMutation.isPending}>
               Cancelar
             </Button>
-            <Button
-              onClick={() => {
-                // lógica de clonagem será implementada aqui
-                setCloneConfirm(null);
-              }}
-            >
-              Confirmar clonagem
+            <Button onClick={handleConfirmClone} disabled={cloneMutation.isPending}>
+              {cloneMutation.isPending ? 'Enviando…' : 'Confirmar clonagem'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Overlay animado: transferência */}
+      {transferPhase !== 'idle' && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-background/75 backdrop-blur-md animate-in fade-in duration-300"
+          role="presentation"
+          aria-live="polite"
+        >
+          <div className="mx-4 w-full max-w-lg rounded-2xl border border-primary/20 bg-card/95 p-8 text-center shadow-2xl shadow-primary/10">
+            {transferPhase === 'running' && (
+              <>
+                <div className="mb-2 flex justify-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary animate-transfer-glow">
+                    <Sparkles className="h-7 w-7" />
+                  </div>
+                </div>
+                <h2 className="text-lg font-semibold tracking-tight">Transferindo votos</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Copiando do período A para o período B…
+                </p>
+
+                <div className="relative mx-auto mt-8 h-36 w-full max-w-md overflow-visible">
+                  <div className="absolute inset-x-0 top-1/2 h-14 -translate-y-1/2 rounded-full border border-primary/25 bg-gradient-to-r from-muted/40 via-primary/10 to-muted/40 shadow-inner" />
+                  <div
+                    className="pointer-events-none absolute inset-x-2 top-1/2 h-10 -translate-y-1/2 rounded-full opacity-80"
+                    style={{
+                      background:
+                        'linear-gradient(90deg, transparent 0%, hsl(var(--primary) / 0.35) 50%, transparent 100%)',
+                      backgroundSize: '220% 100%',
+                    }}
+                  />
+                  <div
+                    className="pointer-events-none absolute inset-x-2 top-1/2 h-10 -translate-y-1/2 animate-conduit-shimmer rounded-full opacity-60"
+                    style={{
+                      background:
+                        'linear-gradient(90deg, transparent 0%, hsl(var(--primary) / 0.55) 45%, hsl(var(--primary) / 0.25) 55%, transparent 100%)',
+                      backgroundSize: '240% 100%',
+                    }}
+                  />
+                  <div className="absolute left-1/2 top-1/2 h-2 w-[min(90%,420px)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-transparent via-primary/80 to-transparent blur-[2px]" />
+                  {Array.from({ length: 20 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="pointer-events-none absolute left-1/2 top-1/2 h-2.5 w-2.5 rounded-full bg-primary shadow-[0_0_12px_hsl(var(--primary)),0_0_4px_hsl(var(--primary)/0.8)] animate-packet-dash"
+                      style={{ animationDelay: `${i * 0.095}s` }}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+
+            {transferPhase === 'success' && (
+              <div className="animate-transfer-success-pop py-4">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="h-9 w-9" strokeWidth={2.25} />
+                </div>
+                <h2 className="text-lg font-semibold">Concluído</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {lastClonedCount === 0
+                    ? 'Não havia votos ativos para copiar nesse dia de origem.'
+                    : lastClonedCount != null
+                      ? `${lastClonedCount} voto(s) replicado(s) no dia de destino.`
+                      : 'Operação finalizada.'}
+                </p>
+              </div>
+            )}
+
+            {transferPhase === 'error' && (
+              <div className="py-6 animate-in zoom-in-95 duration-200">
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-destructive/15 text-destructive">
+                  <XCircle className="h-8 w-8" />
+                </div>
+                <h2 className="text-lg font-semibold">Não foi possível concluir</h2>
+                <p className="mt-2 text-sm text-muted-foreground">Verifique sua conexão e permissões e tente de novo.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -240,6 +240,15 @@ export const votes = {
     const response = await api.post('/votes', data);
     return response.data;
   },
+
+  cloneDay: async (body: {
+    id_empresa: string;
+    sourceDate: string;
+    targetDate: string;
+  }): Promise<{ cloned: number }> => {
+    const response = await api.post('/votes/clone-day', body);
+    return response.data;
+  },
   getAll: async (): Promise<Vote[]> => {
     try {
       const storedUser = localStorage.getItem('user');
