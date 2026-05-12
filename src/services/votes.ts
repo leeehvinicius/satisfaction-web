@@ -1,7 +1,8 @@
 import axios from 'axios';
+import { getApiBaseUrl } from '@/lib/api-base-url';
 import { Vote, VoteAnalytics } from '../types/vote';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://api.vvrefeicoes.com.br';
+const API_URL = getApiBaseUrl();
 
 const votesService = {
   getAll: async (): Promise<Vote[]> => {

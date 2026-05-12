@@ -1,7 +1,8 @@
 import axios from 'axios';
+import { getApiBaseUrl } from '@/lib/api-base-url';
 import { RegisterRequest, AuthResponse } from '../types/api';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://api.vvrefeicoes.com.br';
+const API_URL = getApiBaseUrl();
 
 const authService = {
   register: async (data: RegisterRequest): Promise<AuthResponse> => {

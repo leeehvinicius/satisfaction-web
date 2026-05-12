@@ -6,9 +6,10 @@ import { CreateUserRequest, UpdateUserRequest } from '../types/user';
 import { Permission } from '../types/permission';
 import { Service } from '../types/service';
 import { QueryClient } from '@tanstack/react-query';
+import { getApiBaseUrl } from '@/lib/api-base-url';
 
 // Create an axios instance with base configurations
-const API_URL = import.meta.env.VITE_API_URL || 'https://api.vvrefeicoes.com.br';
+const API_URL = getApiBaseUrl();
 const api = axios.create({
   baseURL: API_URL,
   headers: {
